@@ -27,7 +27,6 @@ PAGES = [
 if 'app_mode' not in st.session_state:
     st.session_state['app_mode'] = PAGES[0]
 
-# 測定用クリック座標のリセット
 if 'img_clicks' not in st.session_state:
     st.session_state['img_clicks'] = []
 
@@ -36,19 +35,13 @@ base_dir = os.path.dirname(os.path.abspath(__file__))
 CSV_FILE = "wot_wwii_all_tanks_modules.csv"
 ZIP_FILE = "wot_wwii_all_tanks_modules.zip"
 
-LOGO_FILE = None
-for potential_logo in ["1782708565492 (1)-Photoroom_2.png", "1782708565492 (1)-Photoroom.png"]:
-    if os.path.exists(os.path.join(base_dir, potential_logo)):
-        LOGO_FILE = potential_logo
-        break
-
 SAMPLE_IMG_FILE = None
 for potential_img in ["Screenshot 2026-07-17 23-00-25.jpg", "Screenshot 2026-07-17 23-00-25_3.jpg"]:
     if os.path.exists(os.path.join(base_dir, potential_img)):
         SAMPLE_IMG_FILE = potential_img
         break
 
-# === CSS (背景ロゴも完全撤去・レイアウト最適化) ===
+# === CSS (背景ロゴ完全撤去・完全ダークモード) ===
 css_string = """
 <style>
 .stApp { background-color: #0d1117 !important; }
@@ -63,9 +56,6 @@ input { background-color: #21262d !important; color: #ffffff !important; border:
 div[data-testid="stButton"] button { background-color: #21262d !important; color: #58a6ff !important; border: 1px solid #30363d !important; border-radius: 8px !important; }
 div[data-testid="stButton"] button:hover { background-color: #30363d !important; color: #ffffff !important; border: 1px solid #58a6ff !important; }
 div[data-testid="stButton"] button p { color: inherit !important; }
-[data-testid="stSidebar"] img { opacity: 0.15 !important; }
-[data-testid="stAppViewContainer"] { background-image: none !important; }
-[data-testid="stAppViewContainer"]::before { display: none !important; }
 .block-container { max-width: 1600px; padding-top: 1.5rem; }
 .panel-box { padding: 20px; background-color: #161b22; border-radius: 12px; margin-bottom: 20px; border: 1px solid #30363d; box-shadow: 0 4px 6px rgba(0,0,0,0.5); }
 .panel-title { font-size: 1.2em; color: #58a6ff !important; margin-top: 10px; margin-bottom: 15px; border-bottom: 2px solid #30363d; padding-bottom: 5px; }
@@ -161,7 +151,6 @@ def load_and_parse_data():
     df['車体装甲(mm)'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'車体装甲.*?([\d/ \.]+)MM', x))
     df['視認範囲(m)'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'視認範囲 / ([\d\.]+)M', x))
     df['発見可能範囲'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'発見可能範囲[^\d]*([\d\.]+/?[\d\.]*)', x))
-    df['旋回速度'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'旋回速度 / ([\d\.]+)度', x))
     df['通信範囲(m)'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'通信範囲 / ([\d\.]+)M', x))
     df['エンジン出力'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'エンジン出力 / (\d+)HP', x))
     df['出力重量比'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'出力重量比 / ([\d\.]+)HP', x))
@@ -174,6 +163,11 @@ def load_and_parse_data():
     df['EXP獲得レート'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'EXP獲得レート[^\d]*(\d+)', x))
     df['フリーEXPレート'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'フリーEXP獲得レート[^\d]*(\d+)', x))
     df['搭乗員EXPレート'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'搭乗員EXPレート[^\d]*(\d+)', x))
+
+    # === 【修正】旋回速度の完璧な仕分け処理 ===
+    # 砲塔旋回（1つ目）と車体旋回（最後）を確実に分離する
+    df['砲塔旋回速度'] = df['詳細・モジュール生データ'].apply(lambda x: re.findall(r'旋回速度 / ([\d\.]+)度', str(x))[0] if len(re.findall(r'旋回速度 / ([\d\.]+)度', str(x))) >= 2 else "-")
+    df['車体旋回速度'] = df['詳細・モジュール生データ'].apply(lambda x: re.findall(r'旋回速度 / ([\d\.]+)度', str(x))[-1] if len(re.findall(r'旋回速度 / ([\d\.]+)度', str(x))) > 0 else "-")
 
     def get_split_val(val_str, idx):
         if pd.isna(val_str) or val_str == "-": return 0
@@ -201,11 +195,7 @@ if df.empty:
 # ==========================================
 # サイドバーとメインメニューの連携設定
 # ==========================================
-if LOGO_FILE:
-    logo_path = os.path.join(base_dir, LOGO_FILE)
-    st.sidebar.image(logo_path, use_container_width=True) 
-else:
-    st.sidebar.title("RECAT Console")
+st.sidebar.title("RECAT Console")
     
 selected_mode = st.sidebar.radio(
     "機能メニュー", 
@@ -224,26 +214,19 @@ def get_val(tank_data, mod_state, col_name):
     if mod_state and not tank_data[tank_data['モジュール状態'] == mod_state].empty: return str(tank_data[tank_data['モジュール状態'] == mod_state][col_name].iloc[0])
     return "-"
 
-# 旋回速度のスマート取得（サスペンションで取れなければ車体全体から探す）
-def get_hull_traverse(tank_data, s_susp):
-    val = get_val(tank_data, s_susp, '旋回速度')
-    if val == "-":
-        fallback = tank_data[tank_data['旋回速度'] != "-"]
-        if not fallback.empty:
-            return str(fallback['旋回速度'].iloc[0])
-    return val
-
 def get_split_str(val_str, idx):
     if pd.isna(val_str) or val_str == "-": return "-"
     parts = str(val_str).split('/')
     if len(parts) > idx: return parts[idx].strip()
     return "-"
+
 def get_float(val_str):
     try:
         parts = re.findall(r'[\-\d\.]+', str(val_str))
         if parts and parts[0] != '-': return float(parts[0])
         return None
     except: return None
+
 def comp_tr(label, valA, valB, higher_better=True, suffix=""):
     numA = get_float(valA)
     numB = get_float(valB)
@@ -264,7 +247,7 @@ def render_html_zukan(label, value, suffix=""):
 # 0. ホーム（メインメニュー）
 # ==========================================
 if st.session_state['app_mode'] == "🏠 ホーム (メインメニュー)":
-    st.markdown("<h1 style='text-align: center; color: #58a6ff !important;'>RECAT 総合データコンソール</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center; color: #58a6ff !important; margin-top: 50px;'>RECAT 総合データコンソール</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; color: #8b949e !important;'>World of Tanks: Modern Armor 専用アナリティクスツール</p>", unsafe_allow_html=True)
     st.markdown("---")
     
@@ -390,7 +373,8 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
         render_html_zukan("視認範囲", get_val(t_data, s_turret, '視認範囲(m)'), "M")
         conceal = get_val(t_data, s_turret, '発見可能範囲')
         render_html_zukan("発見可能範囲 (移動/静止)", f"{get_split_str(conceal, 0)} / {get_split_str(conceal, 1)}", "M")
-        render_html_zukan("砲塔旋回速度", get_val(t_data, s_turret, '旋回速度'), "度/秒")
+        # --- 完璧に仕分けた砲塔旋回速度 ---
+        render_html_zukan("砲塔旋回速度", get_val(t_data, s_turret, '砲塔旋回速度'), "度/秒")
         render_html_zukan("通信範囲", get_val(t_data, s_radio, '通信範囲(m)'), "M")
         render_html_zukan("モジュールの損傷", get_val(t_data, s_gun, 'モジュールの損傷'), "HP")
         st.markdown("</div>", unsafe_allow_html=True)
@@ -400,8 +384,8 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
         render_html_zukan("最大前進 / 後進速度", f"{get_val(t_data, s_engine, '最大前進速度')} / {get_val(t_data, s_engine, '最大後進速度')}", "KM/H")
         render_html_zukan("エンジン出力", get_val(t_data, s_engine, 'エンジン出力'), "HP")
         render_html_zukan("出力重量比", get_val(t_data, s_engine, '出力重量比'), "HP/T")
-        # 車体旋回速度の確実な取得
-        render_html_zukan("車体旋回速度", get_hull_traverse(t_data, s_susp), "度/秒")
+        # --- 完璧に仕分けた車体旋回速度 ---
+        render_html_zukan("車体旋回速度", get_val(t_data, s_susp, '車体旋回速度'), "度/秒")
         ground_res = get_val(t_data, s_susp, '接地抵抗')
         render_html_zukan("接地抵抗 (ハード/ミド/ソフト)", f"{get_split_str(ground_res, 0)} / {get_split_str(ground_res, 1)} / {get_split_str(ground_res, 2)}", "")
         render_html_zukan("火災発生率", get_val(t_data, s_engine, '火災発生率'), "%")
@@ -525,7 +509,8 @@ elif st.session_state['app_mode'] == "⚖️ 車輌比較":
     html += comp_tr("視認範囲", get_val(dfA, s_turretA, '視認範囲(m)'), get_val(dfB, s_turretB, '視認範囲(m)'), True, "m")
     html += comp_tr("発見可能範囲 (移動時)", get_split_str(get_val(dfA, s_turretA, '発見可能範囲'), 0), get_split_str(get_val(dfB, s_turretB, '発見可能範囲'), 0), False, "m")
     html += comp_tr("発見可能範囲 (静止時)", get_split_str(get_val(dfA, s_turretA, '発見可能範囲'), 1), get_split_str(get_val(dfB, s_turretB, '発見可能範囲'), 1), False, "m")
-    html += comp_tr("砲塔旋回速度", get_val(dfA, s_turretA, '旋回速度'), get_val(dfB, s_turretB, '旋回速度'), True, "度/秒")
+    # 比較テーブルにも仕分けた旋回速度を反映
+    html += comp_tr("砲塔旋回速度", get_val(dfA, s_turretA, '砲塔旋回速度'), get_val(dfB, s_turretB, '砲塔旋回速度'), True, "度/秒")
     html += comp_tr("通信範囲", get_val(dfA, s_radioA, '通信範囲(m)'), get_val(dfB, s_radioB, '通信範囲(m)'), True, "m")
     html += f"<tr><th style='text-align: left; padding-left: 15px;'>🚀 機動性・エコノミー</th><th></th><th></th></tr>"
     html += comp_tr("最大前進速度", get_val(dfA, s_engineA, '最大前進速度'), get_val(dfB, s_engineB, '最大前進速度'), True, "km/h")
@@ -533,7 +518,7 @@ elif st.session_state['app_mode'] == "⚖️ 車輌比較":
     html += comp_tr("エンジン出力", get_val(dfA, s_engineA, 'エンジン出力'), get_val(dfB, s_engineB, 'エンジン出力'), True, "HP")
     html += comp_tr("出力重量比", get_val(dfA, s_engineA, '出力重量比'), get_val(dfB, s_engineB, '出力重量比'), True, "hp/t")
     html += comp_tr("火災発生率", get_val(dfA, s_engineA, '火災発生率'), get_val(dfB, s_engineB, '火災発生率'), False, "%")
-    html += comp_tr("車体旋回速度", get_hull_traverse(dfA, s_suspA), get_hull_traverse(dfB, s_suspB), True, "度/秒")
+    html += comp_tr("車体旋回速度", get_val(dfA, s_suspA, '車体旋回速度'), get_val(dfB, s_suspB, '車体旋回速度'), True, "度/秒")
     html += comp_tr("接地抵抗 (ハード)", get_split_str(get_val(dfA, s_suspA, '接地抵抗'), 0), get_split_str(get_val(dfB, s_suspB, '接地抵抗'), 0), False, "")
     html += comp_tr("接地抵抗 (ミディアム)", get_split_str(get_val(dfA, s_suspA, '接地抵抗'), 1), get_split_str(get_val(dfB, s_suspB, '接地抵抗'), 1), False, "")
     html += comp_tr("接地抵抗 (ソフト)", get_split_str(get_val(dfA, s_suspA, '接地抵抗'), 2), get_split_str(get_val(dfB, s_suspB, '接地抵抗'), 2), False, "")
@@ -735,12 +720,12 @@ elif st.session_state['app_mode'] == "🛡️ 装甲計算シミュレーター"
 # 5. 📸 スーパー簡易画像装甲測定
 # ==========================================
 elif st.session_state['app_mode'] == "📸 スーパー簡易画像装甲測定":
-    st.title("📸 スーパー簡易画像装甲測定 (最速・水平弾道計算)")
+    st.title("📸 スーパー簡易画像装甲測定")
     
-    st.info("💡 **使い方 (線を引くだけ！)**\n\n"
-            "1. **画像を用意:** 「側面図」をアップロードします。\n"
-            "2. **装甲を指定 (2回クリック):** 画像上で、調べたい装甲の**「上端」**と**「下端」**をクリックします。\n"
-            "※「弾は水平に飛んでくる」と自動的に仮定し、一瞬で傾斜角を算出します！")
+    st.info("💡 **使い方**\n\n"
+            "1. 側面からの画像をアップロードします。\n"
+            "2. 画像上で調べたい装甲の**「上端」**と**「下端」**をクリックします。\n"
+            "3. 最後に**「弾が飛んでくる方向（発射元）」**をクリックすると実装甲厚が出ます。")
 
     if not HAS_IMG_COORD:
         st.error("⚠️ この機能を使用するには追加ライブラリが必要です。コマンドプロンプト等で以下のコマンドを実行し、アプリを再起動してください。")
@@ -756,12 +741,14 @@ elif st.session_state['app_mode'] == "📸 スーパー簡易画像装甲測定"
         
         st.markdown("---")
         ammo_type = st.radio("被弾する弾種 (標準化の自動適用):", ["AP弾 (標準化 5度)", "APCR弾 (標準化 2度)", "HEAT / HE弾 (標準化 0度)"])
-        
         if "AP弾" in ammo_type: default_norm = 5.0
         elif "APCR" in ammo_type: default_norm = 2.0
         else: default_norm = 0.0
         
         normalization = st.number_input("標準化角度 (度):", min_value=0.0, max_value=20.0, value=default_norm, step=1.0)
+        
+        st.markdown("---")
+        horizontal_angle = st.slider("車体側面の傾斜 (昼飯・豚飯角)", min_value=0.0, max_value=89.0, value=0.0, step=1.0)
         
         st.markdown("---")
         if st.button("🔄 クリック位置をリセット", use_container_width=True):
@@ -770,27 +757,42 @@ elif st.session_state['app_mode'] == "📸 スーパー簡易画像装甲測定"
         st.markdown("</div>", unsafe_allow_html=True)
             
         # --- 計算結果エリア ---
-        if len(st.session_state.get('img_clicks', [])) == 2:
+        if len(st.session_state.get('img_clicks', [])) == 3:
             x1, y1 = st.session_state['img_clicks'][0]
             x2, y2 = st.session_state['img_clicks'][1]
+            x3, y3 = st.session_state['img_clicks'][2]
             
-            dx = abs(x2 - x1)
-            dy = abs(y2 - y1)
+            M_x = (x1 + x2) / 2.0
+            M_y = (y1 + y2) / 2.0
             
-            if dy == 0:
-                angle_deg = 90.0
+            Nx = -(y2 - y1)
+            Ny = (x2 - x1)
+            Sx = M_x - x3
+            Sy = M_y - y3
+            
+            mag_N = math.hypot(Nx, Ny)
+            mag_S = math.hypot(Sx, Sy)
+            
+            if mag_N == 0 or mag_S == 0:
+                angle_deg = 0.0
             else:
-                angle_deg = math.degrees(math.atan(dx / dy))
+                dp = (Sx * Nx) + (Sy * Ny)
+                cos_theta = abs(dp) / (mag_S * mag_N)
+                cos_theta = max(0.0, min(1.0, cos_theta))
+                angle_deg = math.degrees(math.acos(cos_theta))
+
+            compound_angle_rad = math.acos(math.cos(math.radians(angle_deg)) * math.cos(math.radians(horizontal_angle)))
+            compound_angle_deg = math.degrees(compound_angle_rad)
 
             st.markdown("<div class='panel-box' style='border-color: #ff7b72; background-color: rgba(255, 123, 114, 0.05);'>", unsafe_allow_html=True)
             st.markdown("<div class='panel-title' style='color: #ff7b72 !important;'>🛡️ 計算結果</div>", unsafe_allow_html=True)
             
-            calc_angle = max(0.0, angle_deg - normalization)
+            calc_angle = max(0.0, compound_angle_deg - normalization)
             
-            if angle_deg >= 70.0 and ("HEAT" not in ammo_type and "HE" not in ammo_type):
+            if compound_angle_deg >= 70.0 and ("HEAT" not in ammo_type and "HE" not in ammo_type):
                 st.markdown("<div class='armor-result-bounce'>跳弾 (Ricochet)</div>", unsafe_allow_html=True)
                 st.info("※APおよびAPCR弾は、着弾角度が70度以上の場合、強制跳弾（Auto-Bounce）となります。")
-            elif angle_deg >= 85.0 and "HEAT" in ammo_type:
+            elif compound_angle_deg >= 85.0 and "HEAT" in ammo_type:
                 st.markdown("<div class='armor-result-bounce'>跳弾 (Ricochet)</div>", unsafe_allow_html=True)
                 st.info("※HEAT弾は着弾角度が85度以上で強制跳弾となります。")
             else:
@@ -799,16 +801,15 @@ elif st.session_state['app_mode'] == "📸 スーパー簡易画像装甲測定"
                 
                 st.markdown(f"<div class='armor-result'>{eff_armor:.1f} MM</div>", unsafe_allow_html=True)
                 st.markdown(f"<div class='armor-subtext'>基本装甲 <b>{nominal_armor}mm</b> / 最終実効角度 <b>{calc_angle:.1f}°</b></div>", unsafe_allow_html=True)
-                st.success(f"🎯 測定角度: 約 **{angle_deg:.1f} 度**")
+                st.success(f"🎯 測定角度: 約 **{compound_angle_deg:.1f} 度**")
             st.markdown("</div>", unsafe_allow_html=True)
 
     with col_image:
-        st.markdown("<div class='panel-box'>", unsafe_allow_html=True)
+        st.markdown("<div class='panel-box' style='height: 100%; min-height: 600px;'>", unsafe_allow_html=True)
         st.markdown("<div class='panel-title'>📸 画像測定ボード</div>", unsafe_allow_html=True)
         uploaded_file = st.file_uploader("側面から撮影したスクリーンショットをアップロード", type=["png", "jpg", "jpeg"])
         
         target_image = None
-        base_dir = os.path.dirname(os.path.abspath(__file__))
         
         if uploaded_file is not None:
             target_image = Image.open(uploaded_file).convert("RGB")
@@ -830,19 +831,37 @@ elif st.session_state['app_mode'] == "📸 スーパー簡易画像装甲測定"
             clicks = st.session_state.get('img_clicks', [])
             
             r = 6 
-            for pt in clicks:
-                draw.ellipse((pt[0]-r, pt[1]-r, pt[0]+r, pt[1]+r), fill="lime", outline="white", width=2)
+            for i, pt in enumerate(clicks):
+                color = "red" if i < 2 else "cyan"
+                draw.ellipse((pt[0]-r, pt[1]-r, pt[0]+r, pt[1]+r), fill=color, outline="white", width=2)
                 
-            if len(clicks) == 2:
+            if len(clicks) >= 2:
                 x1, y1 = clicks[0]
                 x2, y2 = clicks[1]
                 draw.line([(x1, y1), (x2, y2)], fill="lime", width=4)
+                
+                mid_x = (x1 + x2) / 2
+                mid_y = (y1 + y2) / 2
+                
+                if len(clicks) == 3:
+                    x3, y3 = clicks[2]
+                    draw.line([(x3, y3), (mid_x, mid_y)], fill="cyan", width=3)
+                    
+                    arrow_angle = math.atan2(mid_y - y3, mid_x - x3)
+                    head_len = 15
+                    head_angle = math.pi / 6 
+                    hx1 = mid_x - head_len * math.cos(arrow_angle - head_angle)
+                    hy1 = mid_y - head_len * math.sin(arrow_angle - head_angle)
+                    hx2 = mid_x - head_len * math.cos(arrow_angle + head_angle)
+                    hy2 = mid_y - head_len * math.sin(arrow_angle + head_angle)
+                    draw.polygon([(mid_x, mid_y), (hx1, hy1), (hx2, hy2)], fill="cyan")
 
-            # ユーザーへの案内テキスト
             if len(clicks) == 0:
                 st.warning("👆 画像上で、測定したい装甲の「片端」をクリックしてください。")
             elif len(clicks) == 1:
                 st.warning("👆 次に、同じ装甲の「もう一端」をクリックしてください。")
+            elif len(clicks) == 2:
+                st.warning("🎯 最後に、「弾が飛んでくる方向（発射元）」をクリックしてください。")
             else:
                 st.success("✅ 測定完了！結果は左側に表示されています。やり直す場合は再度画像をクリックしてください。")
             
@@ -850,7 +869,7 @@ elif st.session_state['app_mode'] == "📸 スーパー簡易画像装甲測定"
             
             if value is not None:
                 pt = (value["x"], value["y"])
-                if len(st.session_state['img_clicks']) < 2 and pt not in st.session_state['img_clicks']:
+                if len(st.session_state['img_clicks']) < 3 and pt not in st.session_state['img_clicks']:
                     st.session_state['img_clicks'].append(pt)
                     st.rerun() 
             
