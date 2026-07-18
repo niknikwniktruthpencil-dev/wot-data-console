@@ -15,30 +15,19 @@ st.markdown("""
     .comp-table th { background-color: #2b2b2b; padding: 12px; border-bottom: 2px solid #444; text-align: center; font-size: 1.1em; color: #ffffff; }
     .comp-table td { padding: 8px 12px; border-bottom: 1px solid #333; text-align: center; }
     .comp-label { text-align: left !important; color: #a0a0a0; width: 26%; font-weight: 500; background-color: #252525; }
-    .stat-label { font-size: 0.75em; color: #a0a0a0; margin-bottom: -4px; margin-top: 6px; text-align: center; }
-    .stat-value { font-size: 1.05em; font-weight: bold; margin-bottom: 4px; text-align: center; }
-    .search-box { padding: 10px; background-color: #1e1e1e; border-radius: 8px; margin-bottom: 15px; }
-    .rng-text { font-size: 0.85em; color: #888; font-weight: normal; margin-left: 5px; }
     .armor-result { font-size: 3em; font-weight: bold; color: #ff4b4b; text-align: center; margin-top: 15px; margin-bottom: 5px; }
     </style>
 """, unsafe_allow_html=True)
 
 @st.cache_data
 def load_and_parse_data():
-    files_in_folder = os.listdir('.')
-    target_file = "wot_wwii_all_tanks_modules.csv.zip"
-    alt_file = "wot_wwii_all_tanks_modules.csv"
+    # 【修正済み】サーバーに存在する正しいファイル名に変更しました
+    target_file = "wot_wwii_all_tanks_modules.zip"
     
     if os.path.exists(target_file):
         df = pd.read_csv(target_file, encoding="utf-8-sig", compression="zip")
-    elif os.path.exists(alt_file):
-        df = pd.read_csv(alt_file, encoding="utf-8-sig")
     else:
-        return pd.DataFrame(), files_in_folder
-        
-    def get_match(pattern, text):
-        m = re.search(pattern, str(text))
-        return m.group(1).replace(' ', '').strip('/') if m else "-"
+        return pd.DataFrame(), [target_file] # ファイルがない場合のデバッグ用
         
     def extract_basics(text):
         m = re.search(r'ホーム › 戦車事典 › ([^/]+) / (.*?) / (?:価格|戦闘獲得レート|主要性能)', str(text))
@@ -48,7 +37,6 @@ def load_and_parse_data():
     df[['国', '正確な車輌名']] = df['詳細・モジュール生データ'].apply(extract_basics)
     df = df[df['正確な車輌名'] != "-"]
     
-    # 簡易数値化
     def to_float(val):
         nums = re.findall(r'[\d\.]+', str(val))
         return float(nums[0]) if nums else 0
@@ -59,10 +47,7 @@ def load_and_parse_data():
 df, debug_files = load_and_parse_data()
 
 if df.empty:
-    st.error("データファイルが読み込めませんでした。")
-    st.write("### 🛠 デバッグ情報 (サーバーに見えているファイル一覧)")
-    st.write("このリストの中に 'wot_wwii_all_tanks_modules.csv.zip' があるか確認してください。")
-    st.code(debug_files)
+    st.error(f"データファイルが見つかりません: {debug_files}")
     st.stop()
 
 # サイドバー
