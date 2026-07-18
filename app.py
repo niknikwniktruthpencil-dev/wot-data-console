@@ -3,39 +3,121 @@ import pandas as pd
 import re
 import math
 import os
+import base64
+
+# 画像クリック機能と描画機能のインポート
+try:
+    from streamlit_image_coordinates import streamlit_image_coordinates
+    from PIL import Image, ImageDraw
+    HAS_IMG_COORD = True
+except ImportError:
+    HAS_IMG_COORD = False
 
 # ページ設定
-st.set_page_config(page_title="WOT 総合データコンソール", layout="wide")
+st.set_page_config(page_title="RECAT 総合データコンソール", layout="wide", initial_sidebar_state="expanded")
 
-# === UIデザイン・テーブルのCSS設定 ===
-st.markdown("""
-    <style>
-    .block-container { max-width: 1550px; padding-top: 1.5rem; }
-    .comp-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.95em; background-color: #1e1e1e; border-radius: 8px; overflow: hidden; }
-    .comp-table th { background-color: #2b2b2b; padding: 12px; border-bottom: 2px solid #444; text-align: center; font-size: 1.1em; color: #ffffff; }
-    .comp-table td { padding: 8px 12px; border-bottom: 1px solid #333; text-align: center; }
-    .comp-label { text-align: left !important; color: #a0a0a0; width: 26%; font-weight: 500; background-color: #252525; }
-    .comp-val-col { width: 37%; }
-    .win-stat { color: #4dabf7; font-weight: bold; background-color: rgba(77, 171, 247, 0.15); }
-    .lose-stat { color: #e0e0e0; }
-    .stat-label { font-size: 0.75em; color: #a0a0a0; margin-bottom: -4px; margin-top: 6px; text-align: center; }
-    .stat-value { font-size: 1.05em; font-weight: bold; margin-bottom: 4px; text-align: center; }
-    .search-box { padding: 10px; background-color: #1e1e1e; border-radius: 8px; margin-bottom: 15px; }
-    
-    /* 計算機用のデザイン */
-    .armor-result { font-size: 3em; font-weight: bold; color: #ff4b4b; text-align: center; margin-top: 15px; margin-bottom: 5px; }
-    .armor-result-bounce { font-size: 2.5em; font-weight: bold; color: #a0a0a0; text-align: center; margin-top: 15px; margin-bottom: 5px; }
-    </style>
-""", unsafe_allow_html=True)
+# === セッションステートの初期化 (ページ遷移用) ===
+if 'app_mode' not in st.session_state:
+    st.session_state['app_mode'] = "🏠 ホーム (メインメニュー)"
+
+# === ファイル名とパスの自動解決 ===
+base_dir = os.path.dirname(os.path.abspath(__file__))
+CSV_FILE = "wot_wwii_all_tanks_modules.csv"
+ZIP_FILE = "wot_wwii_all_tanks_modules.zip"
+
+LOGO_FILE = None
+for potential_logo in ["1782708565492 (1)-Photoroom_2.png", "1782708565492 (1)-Photoroom.png"]:
+    if os.path.exists(os.path.join(base_dir, potential_logo)):
+        LOGO_FILE = potential_logo
+        break
+
+SAMPLE_IMG_FILE = "Screenshot 2026-07-17 23-00-25_3.jpg"
+
+def get_base64_of_bin_file(bin_file):
+    if bin_file:
+        full_path = os.path.join(base_dir, bin_file)
+        if os.path.exists(full_path):
+            with open(full_path, 'rb') as f:
+                data = f.read()
+            return base64.b64encode(data).decode()
+    return None
+
+logo_base64 = get_base64_of_bin_file(LOGO_FILE)
+
+# === 全体デザイン設定 (完全ダークモード) ===
+css = """
+<style>
+/* メイン画面とサイドバーの背景を黒/ダークグレーに固定 */
+.stApp { background-color: #0d1117 !important; }
+[data-testid="stSidebar"] { background-color: #161b22 !important; }
+
+/* 全体の文字色を白系に固定 */
+h1, h2, h3, h4, h5, h6, p, span, label, div { color: #e6edf3 !important; }
+
+/* タブ（ドロップダウン）展開時のメニューも強制ダークモード化 */
+div[data-baseweb="select"] > div { background-color: #1c2128 !important; color: #ffffff !important; border-color: #30363d !important; }
+div[data-baseweb="popover"] { background-color: #1c2128 !important; }
+div[data-baseweb="popover"] * { color: #e6edf3 !important; }
+ul[role="listbox"] { background-color: #1c2128 !important; }
+li[role="option"] { background-color: #1c2128 !important; color: #ffffff !important; }
+li[role="option"]:hover { background-color: #30363d !important; color: #58a6ff !important; }
+input { background-color: #1c2128 !important; color: #ffffff !important; border: 1px solid #30363d !important; }
+
+/* ⚠️追加: ボタンの完全ダーク化設定 */
+div[data-testid="stButton"] button { background-color: #21262d !important; color: #58a6ff !important; border: 1px solid #30363d !important; border-radius: 8px !important; }
+div[data-testid="stButton"] button:hover { background-color: #30363d !important; color: #ffffff !important; border: 1px solid #58a6ff !important; }
+div[data-testid="stButton"] button p { color: inherit !important; }
+
+/* サイドバーのロゴ画像を不透明度15%に設定 */
+[data-testid="stSidebar"] img { opacity: 0.15 !important; }
+
+/* パネルとテーブルのデザイン */
+.block-container { max-width: 1600px; padding-top: 1.5rem; }
+.panel-box { padding: 20px; background-color: #161b22; border-radius: 12px; margin-bottom: 20px; border: 1px solid #30363d; box-shadow: 0 4px 6px rgba(0,0,0,0.5); }
+.panel-title { font-size: 1.2em; color: #58a6ff !important; margin-top: 10px; margin-bottom: 15px; border-bottom: 2px solid #30363d; padding-bottom: 5px; }
+.comp-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.95em; background-color: #161b22; border-radius: 8px; overflow: hidden; }
+.comp-table th { background-color: #21262d; padding: 12px; border-bottom: 2px solid #30363d; text-align: center; font-size: 1.1em; color: #ffffff !important; }
+.comp-table td { padding: 8px 12px; border-bottom: 1px solid #30363d; text-align: center; color: #e6edf3 !important;}
+.comp-label { text-align: left !important; color: #8b949e !important; width: 26%; font-weight: 500; background-color: #0d1117; }
+.win-stat { color: #58a6ff !important; font-weight: bold; background-color: rgba(88, 166, 255, 0.1); }
+.stat-label { font-size: 0.8em; color: #8b949e !important; margin-bottom: -4px; margin-top: 8px; text-align: center; }
+.stat-value { font-size: 1.1em; font-weight: bold; margin-bottom: 4px; text-align: center; color: #e6edf3 !important; }
+.armor-result { font-size: 3.5em; font-weight: bold; color: #ff7b72 !important; text-align: center; margin-top: 10px; margin-bottom: 5px; line-height: 1.1;}
+.armor-result-bounce { font-size: 2.8em; font-weight: bold; color: #8b949e !important; text-align: center; margin-top: 10px; margin-bottom: 5px; }
+.armor-subtext { text-align: center; color: #8b949e !important; font-size: 0.9em; margin-bottom: 15px;}
+</style>
+"""
+
+# === ⚠️修正: ホーム画面のみロゴの透かしを表示 (スペースなしで左詰めに配置) ===
+if logo_base64 and st.session_state.get('sidebar_radio', "🏠 ホーム (メインメニュー)") == "🏠 ホーム (メインメニュー)":
+    css += f"""
+<style>
+[data-testid="stAppViewContainer"] {{
+    background-image: url("data:image/png;base64,{logo_base64}");
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: 450px;
+    background-attachment: fixed;
+}}
+[data-testid="stAppViewContainer"]::before {{
+    content: ""; position: absolute; top: 0; right: 0; bottom: 0; left: 0;
+    background-color: rgba(13, 17, 23, 0.88); z-index: -1;
+}}
+</style>
+"""
+
+st.markdown(css, unsafe_allow_html=True)
 
 @st.cache_data
 def load_and_parse_data():
     try:
-        # ZIPファイルが存在する場合はZIPを、そうでない場合はCSVを読み込む
-        if os.path.exists("wot_wwii_all_tanks_modules.zip"):
-            df = pd.read_csv("wot_wwii_all_tanks_modules.zip", encoding="utf-8-sig", compression="zip")
+        zip_path = os.path.join(base_dir, ZIP_FILE)
+        csv_path = os.path.join(base_dir, CSV_FILE)
+        
+        if os.path.exists(zip_path):
+            df = pd.read_csv(zip_path, encoding="utf-8-sig", compression="zip")
         else:
-            df = pd.read_csv("wot_wwii_all_tanks_modules.csv", encoding="utf-8-sig")
+            df = pd.read_csv(csv_path, encoding="utf-8-sig")
     except Exception:
         return pd.DataFrame()
 
@@ -73,7 +155,6 @@ def load_and_parse_data():
     
     df['モジュール種類'] = df.apply(get_module_type, axis=1)
 
-    # === 真の全ステータス徹底抽出（38項目完全維持） ===
     df['DPM_list'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_all(r'分間ダメージ / ([\d/ \.]+)HP', x))
     df['DPM(主砲)'] = df['DPM_list'].apply(lambda x: x[0] if len(x) > 0 else "-")
     df['DPM(副砲)'] = df['DPM_list'].apply(lambda x: x[1] if len(x) > 1 else "-")
@@ -136,75 +217,117 @@ def load_and_parse_data():
         return 0
 
     df['Rank_DPM_Main'] = df['DPM(主砲)'].apply(lambda x: get_split_val(x, 0))
-    df['Rank_DPM_Sub'] = df['DPM(副砲)'].apply(lambda x: get_split_val(x, 0))
     df['Rank_Pen_Std'] = df['貫通力100m(主砲)'].apply(lambda x: get_split_val(x, 0))
-    df['Rank_Pen_Gold'] = df['貫通力100m(主砲)'].apply(lambda x: get_split_val(x, 1))
     df['Rank_Dmg_Std'] = df['ダメージ(主砲)'].apply(lambda x: get_split_val(x, 0))
-    df['Rank_Dmg_HE'] = df['ダメージ(主砲)'].apply(lambda x: get_split_val(x, 2))
     df['Rank_HP'] = df['HP'].apply(lambda x: get_split_val(x, 0))
     df['Rank_Speed'] = df['最大前進速度'].apply(lambda x: get_split_val(x, 0))
     df['Rank_Conceal_Move'] = df['発見可能範囲'].apply(lambda x: get_split_val(x, 0))
-    df['Rank_Conceal_Still'] = df['発見可能範囲'].apply(lambda x: get_split_val(x, 1))
     df['Rank_Vision'] = df['視認範囲(m)'].apply(lambda x: get_split_val(x, 0))
-
     return df
 
 df = load_and_parse_data()
 if df.empty:
-    st.error("エラー: 'wot_wwii_all_tanks_modules.zip' が見つかりません。")
+    st.error(f"エラー: データファイル ({CSV_FILE} または {ZIP_FILE}) が見つかりません。")
     st.stop()
 
 # ==========================================
-# サイドバー
+# サイドバーとメインメニューの設定
 # ==========================================
-st.sidebar.image("https://wxpcdn-cbprodretail.gcdn.co/static/portal/css/scss/tank-page/img/module_icons/module_gun_level_04.png", width=50)
-app_mode = st.sidebar.radio("機能メニュー", ["📖 車輌図鑑", "⚖️ 車輌比較", "🏆 ランキング", "🛡️ 装甲計算シミュレーター"])
+if LOGO_FILE:
+    logo_path = os.path.join(base_dir, LOGO_FILE)
+    st.sidebar.image(logo_path, use_container_width=True) 
+else:
+    st.sidebar.title("RECAT Console")
+    
+st.session_state['app_mode'] = st.sidebar.radio("機能メニュー", [
+    "🏠 ホーム (メインメニュー)", 
+    "📖 車輌図鑑", 
+    "⚖️ 車輌比較", 
+    "🏆 ランキング", 
+    "🛡️ 装甲計算シミュレーター", 
+    "📸 スーパー簡易画像装甲測定"
+], key="sidebar_radio")
 st.sidebar.markdown("---")
+st.sidebar.info("💡 **Tips:** PC環境では画面幅を広げるとより見やすくなります。")
 
-# 共通関数群
 def get_val(tank_data, mod_state, col_name):
-    if mod_state and not tank_data[tank_data['モジュール状態'] == mod_state].empty:
-        return str(tank_data[tank_data['モジュール状態'] == mod_state][col_name].iloc[0])
+    if mod_state and not tank_data[tank_data['モジュール状態'] == mod_state].empty: return str(tank_data[tank_data['モジュール状態'] == mod_state][col_name].iloc[0])
     return "-"
-
 def get_split_str(val_str, idx):
     if pd.isna(val_str) or val_str == "-": return "-"
     parts = str(val_str).split('/')
     if len(parts) > idx: return parts[idx].strip()
     return "-"
-
 def get_float(val_str):
     try:
         parts = re.findall(r'[\-\d\.]+', str(val_str))
         if parts and parts[0] != '-': return float(parts[0])
         return None
     except: return None
-
 def comp_tr(label, valA, valB, higher_better=True, suffix=""):
     numA = get_float(valA)
     numB = get_float(valB)
     clsA, clsB = "lose-stat", "lose-stat"
-    
     if valA != "-" and valB != "-" and higher_better is not None and numA is not None and numB is not None and numA != numB:
         if (numA > numB and higher_better) or (numA < numB and not higher_better): clsA = "win-stat"
         else: clsB = "win-stat"
-
     dispA = f"{valA} {suffix}".strip() if valA != "-" else "-"
     dispB = f"{valB} {suffix}".strip() if valB != "-" else "-"
     return f"<tr><td class='comp-label'>{label}</td><td class='{clsA}'>{dispA}</td><td class='{clsB}'>{dispB}</td></tr>"
 
 def render_html_zukan(label, value, suffix=""):
     if value and str(value) != "-":
-        st.markdown(f"<div class='stat-label'>{label}</div><div class='stat-value'>{value} {suffix}</div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='stat-label'>{label}</div><div class='stat-value'>{value} <span style='font-size:0.7em; color:#8b949e;'>{suffix}</span></div>", unsafe_allow_html=True)
 
 
 # ==========================================
-# 1. 車輌図鑑 (機能・レイアウト完全維持)
+# 0. ホーム（メインメニュー）
 # ==========================================
-if app_mode == "📖 車輌図鑑":
+if st.session_state['app_mode'] == "🏠 ホーム (メインメニュー)":
+    if LOGO_FILE:
+        c1, c2, c3 = st.columns([1, 2, 1])
+        with c2:
+            st.image(logo_path, use_container_width=True)
+            
+    st.markdown("<h1 style='text-align: center; color: #58a6ff !important;'>RECAT 総合データコンソール</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #8b949e !important;'>World of Tanks: Modern Armor 専用アナリティクスツール</p>", unsafe_allow_html=True)
+    st.markdown("---")
+    
+    st.markdown("### 💡 ツールを選択してください")
+    
+    # ジャンプ用ボタンの配置
+    b1, b2, b3 = st.columns(3)
+    with b1:
+        if st.button("📖 車輌図鑑\n\n全ステータスや隠し性能を確認", use_container_width=True):
+            st.session_state['sidebar_radio'] = "📖 車輌図鑑"
+            st.rerun()
+    with b2:
+        if st.button("⚖️ 車輌比較\n\n2つの車輌の性能を並べて比較", use_container_width=True):
+            st.session_state['sidebar_radio'] = "⚖️ 車輌比較"
+            st.rerun()
+    with b3:
+        if st.button("🏆 ランキング\n\nDPMや貫通力などの最強ランキング", use_container_width=True):
+            st.session_state['sidebar_radio'] = "🏆 ランキング"
+            st.rerun()
+            
+    b4, b5 = st.columns(2)
+    with b4:
+        if st.button("🛡️ 装甲計算シミュレーター\n\n昼飯・豚飯時の実質装甲厚を手動計算", use_container_width=True):
+            st.session_state['sidebar_radio'] = "🛡️ 装甲計算シミュレーター"
+            st.rerun()
+    with b5:
+        if st.button("📸 スーパー簡易画像装甲測定\n\nスクショから自動的に実装甲厚を計算", use_container_width=True):
+            st.session_state['sidebar_radio'] = "📸 スーパー簡易画像装甲測定"
+            st.rerun()
+
+
+# ==========================================
+# 1. 車輌図鑑
+# ==========================================
+elif st.session_state['app_mode'] == "📖 車輌図鑑":
     st.title("📖 車輌図鑑")
-    st.markdown("<div class='search-box'>", unsafe_allow_html=True)
-    st.markdown("#### 🔍 車輌の検索・絞り込み")
+    st.markdown("<div class='panel-box'>", unsafe_allow_html=True)
+    st.markdown("<div class='panel-title'>🔍 車輌の検索・絞り込み</div>", unsafe_allow_html=True)
     c1, c2, c3, c4, c5 = st.columns(5)
     z_mode = c1.radio("モード", ["WWII", "Cold War"], horizontal=True)
     z_q = c2.text_input("名前で検索 (フリーワード):", placeholder="例: Tiger")
@@ -220,14 +343,12 @@ if app_mode == "📖 車輌図鑑":
     if not tank_list: 
         st.warning("条件に一致する車輌がありません。")
         st.stop()
-    selected_tank = st.selectbox("🎯 抽出対象の車輌を選択 (枠内をクリックして文字入力で直接検索も可能です)", tank_list)
+    selected_tank = st.selectbox("🎯 抽出対象の車輌を選択", tank_list)
     st.markdown("</div>", unsafe_allow_html=True)
     
     t_data = df[df['正確な車輌名'] == selected_tank]
     st.markdown("---")
-    st.title(f"【{selected_tank}】")
-    st.markdown("### ⚙️ モジュール構成")
-    
+    st.markdown(f"<div class='panel-title'>⚙️ モジュール構成 - {selected_tank}</div>", unsafe_allow_html=True)
     mc1, mc2, mc3, mc4, mc5 = st.columns(5)
     guns = t_data[t_data['モジュール種類'] == '主砲']['モジュール状態'].unique()
     turrets = t_data[t_data['モジュール種類'] == '砲塔']['モジュール状態'].unique()
@@ -237,39 +358,36 @@ if app_mode == "📖 車輌図鑑":
     s_gun = mc1.selectbox("主砲", guns) if len(guns) > 0 else None
     s_turret = mc2.selectbox("砲塔", turrets) if len(turrets) > 0 else None
     s_engine = mc3.selectbox("エンジン", engines) if len(engines) > 0 else None
-    s_susp = mc4.selectbox("サスペンション", susps) if len(susps) > 0 else None
+    s_susp = mc4.selectbox("履帯", susps) if len(susps) > 0 else None
     s_radio = mc5.selectbox("無線", radios) if len(radios) > 0 else None
     
     st.markdown("---")
-    st.markdown("### 🔍 詳細スペック (全38項目網羅)")
     d1, d2, d3, d4 = st.columns(4)
     with d1:
-        st.markdown("#### 💥 攻撃性能 1")
-        render_html_zukan("分間ダメージ (主砲)", get_val(t_data, s_gun, 'DPM(主砲)'), "HP/分")
+        st.markdown("<div class='panel-box'>", unsafe_allow_html=True)
+        st.markdown("<div class='panel-title'>💥 攻撃性能 (主砲)</div>", unsafe_allow_html=True)
+        render_html_zukan("分間ダメージ", get_val(t_data, s_gun, 'DPM(主砲)'), "HP/分")
         pen_main = get_val(t_data, s_gun, '貫通力100m(主砲)')
-        render_html_zukan("100M 貫通力 (通常弾)", get_split_str(pen_main, 0), "MM")
-        render_html_zukan("100M 貫通力 (課金弾)", get_split_str(pen_main, 1), "MM")
-        render_html_zukan("100M 貫通力 (HE)", get_split_str(pen_main, 2), "MM")
+        render_html_zukan("100M 貫通力 (通常/金/HE)", f"{get_split_str(pen_main, 0)} / {get_split_str(pen_main, 1)} / {get_split_str(pen_main, 2)}", "MM")
         pen_500 = get_val(t_data, s_gun, '貫通力500m(主砲)')
-        render_html_zukan("500M 貫通力 (通常弾)", get_split_str(pen_500, 0), "MM")
-        render_html_zukan("500M 貫通力 (課金弾)", get_split_str(pen_500, 1), "MM")
+        render_html_zukan("500M 貫通力 (通常/金)", f"{get_split_str(pen_500, 0)} / {get_split_str(pen_500, 1)}", "MM")
         dmg_main = get_val(t_data, s_gun, 'ダメージ(主砲)')
-        render_html_zukan("ダメージ (通常弾)", get_split_str(dmg_main, 0), "HP")
-        render_html_zukan("ダメージ (課金弾)", get_split_str(dmg_main, 1), "HP")
-        render_html_zukan("ダメージ (HE)", get_split_str(dmg_main, 2), "HP")
-        render_html_zukan("装填時間 (主砲)", get_val(t_data, s_gun, '装填時間(主砲)'), "秒")
+        render_html_zukan("ダメージ (通常/金/HE)", f"{get_split_str(dmg_main, 0)} / {get_split_str(dmg_main, 1)} / {get_split_str(dmg_main, 2)}", "HP")
+        render_html_zukan("装填時間", get_val(t_data, s_gun, '装填時間(主砲)'), "秒")
         render_html_zukan("照準時間", get_val(t_data, s_gun, '照準時間(秒)'), "秒")
         render_html_zukan("精度", get_val(t_data, s_gun, '精度(m)'), "M")
         render_html_zukan("射撃速度", get_val(t_data, s_gun, '射撃速度'), "発/分")
+        st.markdown("</div>", unsafe_allow_html=True)
     with d2:
-        st.markdown("#### 💥 攻撃性能 2 (副砲・その他)")
+        st.markdown("<div class='panel-box'>", unsafe_allow_html=True)
+        st.markdown("<div class='panel-title'>💥 攻撃・砲弾特性</div>", unsafe_allow_html=True)
         dpm_sub = get_val(t_data, s_gun, 'DPM(副砲)')
         if dpm_sub != "-":
             render_html_zukan("分間ダメージ (副砲)", dpm_sub, "HP/分")
             render_html_zukan("100M 貫通力 (副砲)", get_split_str(get_val(t_data, s_gun, '貫通力100m(副砲)'), 0), "MM")
             render_html_zukan("ダメージ (副砲)", get_split_str(get_val(t_data, s_gun, 'ダメージ(副砲)'), 0), "HP")
             render_html_zukan("装填時間 (副砲)", get_val(t_data, s_gun, '装填時間(副砲)'), "秒")
-            st.markdown("<hr style='margin:10px 0;'>", unsafe_allow_html=True)
+            st.markdown("<hr style='border-color:#333; margin:10px 0;'>", unsafe_allow_html=True)
         render_html_zukan("俯角 / 仰角", f"{get_val(t_data, s_gun, '俯角')} / {get_val(t_data, s_gun, '仰角')}", "度")
         render_html_zukan("水平可動域", get_val(t_data, s_gun, '水平可動域'), "度")
         render_html_zukan("砲弾タイプ", get_val(t_data, s_gun, '砲弾タイプ'))
@@ -277,52 +395,47 @@ if app_mode == "📖 車輌図鑑":
         render_html_zukan("弾薬の最大射程", get_val(t_data, s_gun, '弾薬の最大射程'), "M")
         render_html_zukan("総弾数", get_val(t_data, s_gun, '総弾数'), "発")
         render_html_zukan("砲塔旋回中の射撃精度", get_val(t_data, s_gun, '砲塔旋回中の射撃精度'), "M")
-        render_html_zukan("モジュールの損傷", get_val(t_data, s_gun, 'モジュールの損傷'), "HP")
         render_html_zukan("攻撃半径 (榴弾)", get_val(t_data, s_gun, '攻撃半径'), "M")
+        st.markdown("</div>", unsafe_allow_html=True)
     with d3:
-        st.markdown("#### 🛡️ 防御・耐久・視認")
+        st.markdown("<div class='panel-box'>", unsafe_allow_html=True)
+        st.markdown("<div class='panel-title'>🛡️ 防御・視認</div>", unsafe_allow_html=True)
         render_html_zukan("耐久値 (HP)", get_val(t_data, s_turret, 'HP'), "HP")
         hull_armor = get_val(t_data, s_turret, '車体装甲(mm)')
-        render_html_zukan("車体装甲 (前面)", get_split_str(hull_armor, 0), "MM")
-        render_html_zukan("車体装甲 (側面)", get_split_str(hull_armor, 1), "MM")
-        render_html_zukan("車体装甲 (背面)", get_split_str(hull_armor, 2), "MM")
+        render_html_zukan("車体装甲 (前/側/背)", f"{get_split_str(hull_armor, 0)} / {get_split_str(hull_armor, 1)} / {get_split_str(hull_armor, 2)}", "MM")
         turret_armor = get_val(t_data, s_turret, '砲塔装甲(mm)')
-        render_html_zukan("砲塔装甲 (前面)", get_split_str(turret_armor, 0), "MM")
-        render_html_zukan("砲塔装甲 (側面)", get_split_str(turret_armor, 1), "MM")
-        render_html_zukan("砲塔装甲 (背面)", get_split_str(turret_armor, 2), "MM")
+        render_html_zukan("砲塔装甲 (前/側/背)", f"{get_split_str(turret_armor, 0)} / {get_split_str(turret_armor, 1)} / {get_split_str(turret_armor, 2)}", "MM")
         render_html_zukan("視認範囲", get_val(t_data, s_turret, '視認範囲(m)'), "M")
         conceal = get_val(t_data, s_turret, '発見可能範囲')
-        render_html_zukan("発見可能範囲 (移動時)", get_split_str(conceal, 0), "M")
-        render_html_zukan("発見可能範囲 (静止時)", get_split_str(conceal, 1), "M")
+        render_html_zukan("発見可能範囲 (移動/静止)", f"{get_split_str(conceal, 0)} / {get_split_str(conceal, 1)}", "M")
         render_html_zukan("砲塔旋回速度", get_val(t_data, s_turret, '旋回速度'), "度/秒")
         render_html_zukan("通信範囲", get_val(t_data, s_radio, '通信範囲(m)'), "M")
+        render_html_zukan("モジュールの損傷", get_val(t_data, s_gun, 'モジュールの損傷'), "HP")
+        st.markdown("</div>", unsafe_allow_html=True)
     with d4:
-        st.markdown("#### 🚀 機動性・エコノミー")
-        render_html_zukan("最大前進速度", get_val(t_data, s_engine, '最大前進速度'), "KM/H")
-        render_html_zukan("最大後進速度", get_val(t_data, s_engine, '最大後進速度'), "KM/H")
+        st.markdown("<div class='panel-box'>", unsafe_allow_html=True)
+        st.markdown("<div class='panel-title'>🚀 機動性・エコノミー</div>", unsafe_allow_html=True)
+        render_html_zukan("最大前進 / 後進速度", f"{get_val(t_data, s_engine, '最大前進速度')} / {get_val(t_data, s_engine, '最大後進速度')}", "KM/H")
         render_html_zukan("エンジン出力", get_val(t_data, s_engine, 'エンジン出力'), "HP")
         render_html_zukan("出力重量比", get_val(t_data, s_engine, '出力重量比'), "HP/T")
-        render_html_zukan("火災発生率", get_val(t_data, s_engine, '火災発生率'), "%")
         render_html_zukan("車体旋回速度", get_val(t_data, s_susp, '旋回速度'), "度/秒")
         ground_res = get_val(t_data, s_susp, '接地抵抗')
-        render_html_zukan("接地抵抗 (ハード)", get_split_str(ground_res, 0), "")
-        render_html_zukan("接地抵抗 (ミディアム)", get_split_str(ground_res, 1), "")
-        render_html_zukan("接地抵抗 (ソフト)", get_split_str(ground_res, 2), "")
+        render_html_zukan("接地抵抗 (ハード/ミド/ソフト)", f"{get_split_str(ground_res, 0)} / {get_split_str(ground_res, 1)} / {get_split_str(ground_res, 2)}", "")
+        render_html_zukan("火災発生率", get_val(t_data, s_engine, '火災発生率'), "%")
         render_html_zukan("シルバー獲得レート", get_val(t_data, s_turret, 'シルバー獲得レート'), "%")
         render_html_zukan("EXP獲得レート", get_val(t_data, s_turret, 'EXP獲得レート'), "%")
-        render_html_zukan("フリーEXP獲得レート", get_val(t_data, s_turret, 'フリーEXPレート'), "%")
-        render_html_zukan("搭乗員EXPレート", get_val(t_data, s_turret, '搭乗員EXPレート'), "%")
+        render_html_zukan("フリー / 搭乗員EXPレート", f"{get_val(t_data, s_turret, 'フリーEXPレート')}% / {get_val(t_data, s_turret, '搭乗員EXPレート')}%", "")
         render_html_zukan("最大マッチメイキング", get_val(t_data, s_turret, '最大TIER'), "")
+        st.markdown("</div>", unsafe_allow_html=True)
 
 # ==========================================
-# 2. 車輌比較 (機能・レイアウト完全維持)
+# 2. 車輌比較
 # ==========================================
-elif app_mode == "⚖️ 車輌比較":
+elif st.session_state['app_mode'] == "⚖️ 車輌比較":
     st.title("⚖️ 究極スペック比較テーブル")
     colA, colB = st.columns(2)
     with colA:
-        st.markdown("<div class='search-box'>", unsafe_allow_html=True)
-        st.markdown("### 🟦 車輌 A の検索")
+        st.markdown("<div class='panel-title'>🟦 車輌 A の検索と設定</div>", unsafe_allow_html=True)
         c1, c2 = st.columns(2)
         modeA = c1.radio("モード (A)", ["WWII", "Cold War"], horizontal=True)
         qA = c2.text_input("検索 (A)", placeholder="名前入力...")
@@ -337,7 +450,7 @@ elif app_mode == "⚖️ 車輌比較":
         if tierA != "すべて": fA = fA[(fA['Tier'] == tierA) | (fA['時代'] == tierA)]
         listA = sorted(fA['正確な車輌名'].unique())
         tankA = st.selectbox("🎯 比較する車輌 A を選択", listA if listA else ["-"])
-        st.markdown("</div>", unsafe_allow_html=True)
+        
         dfA = df[df['正確な車輌名'] == tankA]
         ca1, ca2, ca3 = st.columns(3)
         gA = dfA[dfA['モジュール種類'] == '主砲']['モジュール状態'].unique()
@@ -353,8 +466,7 @@ elif app_mode == "⚖️ 車輌比較":
         s_radioA = ca5.selectbox("無線(A)", rA) if len(rA)>0 else None
 
     with colB:
-        st.markdown("<div class='search-box'>", unsafe_allow_html=True)
-        st.markdown("### 🟥 車輌 B の検索")
+        st.markdown("<div class='panel-title'>🟥 車輌 B の検索と設定</div>", unsafe_allow_html=True)
         c1, c2 = st.columns(2)
         modeB = c1.radio("モード (B)", ["WWII", "Cold War"], horizontal=True)
         qB = c2.text_input("検索 (B)", placeholder="名前入力...")
@@ -369,7 +481,7 @@ elif app_mode == "⚖️ 車輌比較":
         if tierB != "すべて": fB = fB[(fB['Tier'] == tierB) | (fB['時代'] == tierB)]
         listB = sorted(fB['正確な車輌名'].unique())
         tankB = st.selectbox("🎯 比較する車輌 B を選択", listB if listB else ["-"])
-        st.markdown("</div>", unsafe_allow_html=True)
+        
         dfB = df[df['正確な車輌名'] == tankB]
         cb1, cb2, cb3 = st.columns(3)
         gB = dfB[dfB['モジュール種類'] == '主砲']['モジュール状態'].unique()
@@ -384,7 +496,6 @@ elif app_mode == "⚖️ 車輌比較":
         s_suspB = cb4.selectbox("サスペンション(B)", suspB) if len(suspB)>0 else None
         s_radioB = cb5.selectbox("無線(B)", rB) if len(rB)>0 else None
 
-    # テーブル生成
     html = "<table class='comp-table'>"
     html += f"<tr><th style='text-align: left; padding-left: 15px;'>💥 火力・主砲性能</th><th class='comp-val-col'>{tankA}</th><th class='comp-val-col'>{tankB}</th></tr>"
     html += comp_tr("分間ダメージ (主砲)", get_val(dfA, s_gunA, 'DPM(主砲)'), get_val(dfB, s_gunB, 'DPM(主砲)'), True, "HP/分")
@@ -443,12 +554,11 @@ elif app_mode == "⚖️ 車輌比較":
     st.markdown(html, unsafe_allow_html=True)
 
 # ==========================================
-# 3. ランキング (機能完全維持)
+# 3. ランキング
 # ==========================================
-elif app_mode == "🏆 ランキング":
+elif st.session_state['app_mode'] == "🏆 ランキング":
     st.title("🏆 戦術アナリティクス・ランキング")
-    st.markdown("<div class='search-box'>", unsafe_allow_html=True)
-    st.markdown("#### 🔍 抽出条件の指定")
+    st.markdown("<div class='panel-title'>🔍 抽出条件の指定</div>", unsafe_allow_html=True)
     c1, c2, c3 = st.columns(3)
     r_mode = c1.selectbox("モード:", ["WWII", "Cold War"])
     if r_mode == "WWII": r_tier = c2.selectbox("Tier:", ["すべて", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"], index=8)
@@ -467,7 +577,6 @@ elif app_mode == "🏆 ランキング":
         "車輌ごとの最大値 (各車輌につき最強構成で1回のみランクイン)", 
         "すべての砲・モジュールを参加させる (同じ車輌でも装備が違えば別々にランクイン)"
     ], horizontal=True)
-    st.markdown("</div>", unsafe_allow_html=True)
     
     col_dict = {
         "DPM": ("Rank_DPM_Main", False),
@@ -533,21 +642,21 @@ elif app_mode == "🏆 ランキング":
             display_df = ranked[disp_cols].copy()
             display_df.columns = col_names
             
+            st.markdown("---")
             st.markdown(f"### 👑 {r_tier} {r_type} - {rank_target} TOPランキング")
             st.dataframe(display_df.head(100), use_container_width=True)
 
 # ==========================================
-# 4. 新規追加: 装甲計算シミュレーター
+# 4. 装甲計算シミュレーター (手動)
 # ==========================================
-elif app_mode == "🛡️ 装甲計算シミュレーター":
+elif st.session_state['app_mode'] == "🛡️ 装甲計算シミュレーター":
     st.title("🛡️ 実質装甲厚 計算シミュレーター (昼飯・豚飯検証)")
     st.write("WOT特有の「標準化（Normalization）」を加味し、入力した角度に対する実質装甲厚を自動計算します。")
 
-    col1, col2 = st.columns(2)
+    col1, col2 = st.columns([1, 1])
 
     with col1:
-        st.markdown("<div class='search-box'>", unsafe_allow_html=True)
-        st.markdown("### 📐 条件設定")
+        st.markdown("<div class='panel-title'>📐 条件設定</div>", unsafe_allow_html=True)
         mode_calc = st.radio("装甲厚の入力方法:", ["手動で数値を入力", "図鑑のデータから引用"], horizontal=True)
 
         nominal_armor = 250.0 
@@ -597,11 +706,9 @@ elif app_mode == "🛡️ 装甲計算シミュレーター":
         else: default_norm = 0.0
         
         normalization = st.number_input("標準化角度 (度):", min_value=0.0, max_value=20.0, value=default_norm, step=1.0)
-        st.markdown("</div>", unsafe_allow_html=True)
 
     with col2:
-        st.markdown("<div class='search-box' style='height: 100%;'>", unsafe_allow_html=True)
-        st.markdown("### 🛡️ 計算結果")
+        st.markdown("<div class='panel-title'>🛡️ 計算結果</div>", unsafe_allow_html=True)
         calc_angle = max(0.0, angle_deg - normalization)
         
         if angle_deg >= 70.0 and ("HEAT" not in ammo_type and "HE" not in ammo_type):
@@ -615,13 +722,168 @@ elif app_mode == "🛡️ 装甲計算シミュレーター":
             else: eff_armor = nominal_armor / math.cos(math.radians(calc_angle))
             
             st.markdown(f"<div class='armor-result'>{eff_armor:.1f} MM</div>", unsafe_allow_html=True)
-            st.markdown(f"<p style='text-align: center; color: #a0a0a0;'>基本装甲 <b>{nominal_armor}mm</b> に対し、実効角度 <b>{calc_angle}°</b> で計算</p>", unsafe_allow_html=True)
+            st.markdown(f"<div class='armor-subtext'>基本装甲 <b>{nominal_armor}mm</b> / 実効角度 <b>{calc_angle:.1f}°</b></div>", unsafe_allow_html=True)
 
         st.markdown("---")
         st.markdown("#### 💡 WOTの計算式メカニズム")
         st.latex(r"実質装甲 = \frac{基本装甲厚}{\cos(着弾角度 - 標準化)}")
         st.write("""
-        * **標準化 (Normalization):** 砲弾が装甲に食い込む際に、角度を垂直に近づけようとする力の事です。AP弾は5度、APCR弾は2度有利に判定されます。
-        * **跳弾 (Ricochet):** WOTでは、AP/APCRは70度以上、HEATは85度以上の角度で着弾すると、貫通力に関係なく弾かれます（3倍ルール適応時を除く）。
+        * **標準化 (Normalization):** 砲弾が装甲に食い込む際に、角度を垂直に近づけようとする力。AP弾は5度、APCR弾は2度有利に判定されます。
+        * **跳弾 (Ricochet):** WOTでは、AP/APCRは70度以上、HEATは85度以上で着弾すると、貫通力に関係なく弾かれます（3倍ルール適応時を除く）。
         """)
-        st.markdown("</div>", unsafe_allow_html=True)
+
+# ==========================================
+# 5. 📸 スーパー簡易画像装甲測定
+# ==========================================
+elif st.session_state['app_mode'] == "📸 スーパー簡易画像装甲測定":
+    st.title("📸 スーパー簡易画像装甲測定 (3点クリック弾道計算)")
+    
+    st.info("💡 **使い方 (3ステップで完了！)**\n\n"
+            "1. **画像を用意:** 調べたい戦車を**真横**から見た画像をアップロードします。（※現在はサンプル画像が表示されています）\n"
+            "2. **装甲を指定 (2回クリック):** 画像上で、調べたい装甲の**「上端」**と**「下端」**をクリックします。（緑色の線が引かれます）\n"
+            "3. **弾道を指定 (1回クリック):** 最後に、**「弾が飛んでくる位置（発射元）」**をクリックすると、自動で計算結果が表示されます！")
+
+    if not HAS_IMG_COORD:
+        st.error("⚠️ この機能を使用するには追加ライブラリが必要です。コマンドプロンプト等で以下のコマンドを実行し、アプリを再起動してください。")
+        st.code("pip install streamlit-image-coordinates pillow")
+        st.stop()
+
+    col_settings, col_image = st.columns([1.5, 2.5])
+
+    with col_settings:
+        st.markdown("<div class='panel-title'>⚙️ 条件設定</div>", unsafe_allow_html=True)
+        nominal_armor = st.number_input("基本装甲厚 (mm):", min_value=1.0, max_value=1500.0, value=100.0, step=1.0)
+        
+        st.markdown("---")
+        ammo_type = st.radio("被弾する弾種 (標準化の自動適用):", ["AP弾 (標準化 5度)", "APCR弾 (標準化 2度)", "HEAT / HE弾 (標準化 0度)"])
+        
+        if "AP弾" in ammo_type: default_norm = 5.0
+        elif "APCR" in ammo_type: default_norm = 2.0
+        else: default_norm = 0.0
+        
+        normalization = st.number_input("標準化角度 (度):", min_value=0.0, max_value=20.0, value=default_norm, step=1.0)
+        
+        st.markdown("---")
+        if st.button("🔄 クリック位置をリセット", use_container_width=True):
+            st.session_state['img_clicks'] = []
+            st.session_state['last_click'] = None
+            st.rerun()
+            
+        # --- 計算結果エリア ---
+        if len(st.session_state.get('img_clicks', [])) == 3:
+            x1, y1 = st.session_state['img_clicks'][0]
+            x2, y2 = st.session_state['img_clicks'][1]
+            x3, y3 = st.session_state['img_clicks'][2]
+            
+            M_x = (x1 + x2) / 2.0
+            M_y = (y1 + y2) / 2.0
+            
+            Nx = -(y2 - y1)
+            Ny = (x2 - x1)
+            Sx = M_x - x3
+            Sy = M_y - y3
+            
+            mag_N = math.hypot(Nx, Ny)
+            mag_S = math.hypot(Sx, Sy)
+            
+            if mag_N == 0 or mag_S == 0:
+                angle_deg = 0.0
+            else:
+                dp = (Sx * Nx) + (Sy * Ny)
+                cos_theta = abs(dp) / (mag_S * mag_N)
+                cos_theta = max(0.0, min(1.0, cos_theta))
+                angle_deg = math.degrees(math.acos(cos_theta))
+
+            st.markdown("---")
+            st.markdown("<div class='panel-title' style='color: #ff7b72 !important;'>🛡️ 計算結果</div>", unsafe_allow_html=True)
+            
+            calc_angle = max(0.0, angle_deg - normalization)
+            
+            if angle_deg >= 70.0 and ("HEAT" not in ammo_type and "HE" not in ammo_type):
+                st.markdown("<div class='armor-result-bounce'>跳弾 (Ricochet)</div>", unsafe_allow_html=True)
+                st.info("※APおよびAPCR弾は、着弾角度が70度以上の場合、強制跳弾（Auto-Bounce）となります。")
+            elif angle_deg >= 85.0 and "HEAT" in ammo_type:
+                st.markdown("<div class='armor-result-bounce'>跳弾 (Ricochet)</div>", unsafe_allow_html=True)
+                st.info("※HEAT弾は着弾角度が85度以上で強制跳弾となります。")
+            else:
+                if calc_angle >= 89.9: eff_armor = float('inf')
+                else: eff_armor = nominal_armor / math.cos(math.radians(calc_angle))
+                
+                st.markdown(f"<div class='armor-result'>{eff_armor:.1f} MM</div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='armor-subtext'>基本装甲 <b>{nominal_armor}mm</b> / 実効角度 <b>{calc_angle:.1f}°</b></div>", unsafe_allow_html=True)
+                st.success(f"🎯 測定された着弾角度: 約 **{angle_deg:.1f}** 度")
+
+    with col_image:
+        st.markdown("<div class='panel-title'>📸 画像測定ボード</div>", unsafe_allow_html=True)
+        
+        # ⚠️余分な空欄を防ぐために、アップローダーの配置をシンプル化
+        uploaded_file = st.file_uploader("真横から撮影したスクリーンショットをアップロード (任意)", type=["png", "jpg", "jpeg"])
+        
+        target_image = None
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        
+        if uploaded_file is not None:
+            target_image = Image.open(uploaded_file).convert("RGB")
+        else:
+            sample_path = os.path.join(base_dir, SAMPLE_IMG_FILE)
+            if os.path.exists(sample_path):
+                target_image = Image.open(sample_path).convert("RGB")
+            else:
+                st.warning(f"⚠️ サンプル画像が見つかりません。({sample_path}) 画像をアップロードしてください。")
+
+        if 'img_clicks' not in st.session_state:
+            st.session_state['img_clicks'] = []
+            
+        if target_image is not None:
+            target_image.thumbnail((1000, 1000))
+            
+            draw_image = target_image.copy()
+            draw = ImageDraw.Draw(draw_image)
+            clicks = st.session_state.get('img_clicks', [])
+            
+            r = 6 
+            for i, pt in enumerate(clicks):
+                color = "red" if i < 2 else "cyan"
+                draw.ellipse((pt[0]-r, pt[1]-r, pt[0]+r, pt[1]+r), fill=color, outline="white", width=2)
+                
+            if len(clicks) >= 2:
+                x1, y1 = clicks[0]
+                x2, y2 = clicks[1]
+                draw.line([(x1, y1), (x2, y2)], fill="lime", width=4)
+                
+                mid_x = (x1 + x2) / 2
+                mid_y = (y1 + y2) / 2
+                
+                if len(clicks) == 3:
+                    x3, y3 = clicks[2]
+                    draw.line([(x3, y3), (mid_x, mid_y)], fill="cyan", width=3)
+                    
+                    arrow_angle = math.atan2(mid_y - y3, mid_x - x3)
+                    head_len = 15
+                    head_angle = math.pi / 6 
+                    hx1 = mid_x - head_len * math.cos(arrow_angle - head_angle)
+                    hy1 = mid_y - head_len * math.sin(arrow_angle - head_angle)
+                    hx2 = mid_x - head_len * math.cos(arrow_angle + head_angle)
+                    hy2 = mid_y - head_len * math.sin(arrow_angle + head_angle)
+                    draw.polygon([(mid_x, mid_y), (hx1, hy1), (hx2, hy2)], fill="cyan")
+
+            # ユーザーへの案内テキスト
+            if len(clicks) == 0:
+                st.warning("👆 画像上で、測定したい装甲の「上端」をクリックしてください。")
+            elif len(clicks) == 1:
+                st.warning("👆 次に、同じ装甲の「下端」をクリックしてください。")
+            elif len(clicks) == 2:
+                st.warning("🎯 最後に、「弾が飛んでくる位置（発射元）」をクリックしてください。")
+            else:
+                st.success("✅ 測定完了！結果は左側に表示されています。やり直す場合は再度画像をクリックしてください。")
+            
+            value = streamlit_image_coordinates(draw_image, key="armor_img")
+            
+            if value is not None:
+                pt = (value["x"], value["y"])
+                if pt != st.session_state.get('last_click'):
+                    st.session_state['last_click'] = pt
+                    if len(st.session_state['img_clicks']) >= 3:
+                        st.session_state['img_clicks'] = [] 
+                    st.session_state['img_clicks'].append(pt)
+                    st.rerun()
