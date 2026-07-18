@@ -72,9 +72,9 @@ div[data-testid="stButton"] button p { color: inherit !important; }
 .win-stat { color: #58a6ff !important; font-weight: bold; background-color: rgba(88, 166, 255, 0.1); }
 .stat-label { font-size: 0.8em; color: #8b949e !important; margin-bottom: -4px; margin-top: 8px; text-align: center; }
 .stat-value { font-size: 1.1em; font-weight: bold; margin-bottom: 4px; text-align: center; color: #e6edf3 !important; }
-.armor-result { font-size: 3.5em; font-weight: bold; color: #ff7b72 !important; text-align: center; margin-top: 10px; margin-bottom: 5px; line-height: 1.1;}
-.armor-result-bounce { font-size: 2.8em; font-weight: bold; color: #8b949e !important; text-align: center; margin-top: 10px; margin-bottom: 5px; }
-.armor-subtext { text-align: center; color: #8b949e !important; font-size: 0.9em; margin-bottom: 15px;}
+.armor-result { font-size: 3.5em !important; font-weight: bold !important; color: #ff7b72 !important; text-align: center !important; margin-top: 10px !important; margin-bottom: 5px !important; line-height: 1.1 !important; display: block !important;}
+.armor-result-bounce { font-size: 2.8em !important; font-weight: bold !important; color: #8b949e !important; text-align: center !important; margin-top: 10px !important; margin-bottom: 5px !important; display: block !important;}
+.armor-subtext { text-align: center !important; color: #8b949e !important; font-size: 0.9em !important; margin-bottom: 15px !important; display: block !important;}
 </style>
 """
 safe_css = css_string.replace('\n', ' ')
@@ -157,7 +157,6 @@ def load_and_parse_data():
     df['車体装甲(mm)'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'車体装甲.*?([\d/ \.]+)MM', x))
     df['視認範囲(m)'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'視認範囲 / ([\d\.]+)M', x))
     df['発見可能範囲'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'発見可能範囲[^\d]*([\d\.]+/?[\d\.]*)', x))
-    df['旋回速度'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'旋回速度 / ([\d\.]+)度', x))
     df['通信範囲(m)'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'通信範囲 / ([\d\.]+)M', x))
     df['エンジン出力'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'エンジン出力 / (\d+)HP', x))
     df['出力重量比'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'出力重量比 / ([\d\.]+)HP', x))
@@ -224,21 +223,30 @@ def get_val(tank_data, mod_state, col_name):
     if mod_state and not tank_data[tank_data['モジュール状態'] == mod_state].empty: return str(tank_data[tank_data['モジュール状態'] == mod_state][col_name].iloc[0])
     return "-"
 
-# === 確実な旋回速度の取得ロジック ===
-def get_turret_traverse(tank_data, s_turret):
-    val = get_val(tank_data, s_turret, '旋回速度')
-    if val != "-": return val
-    fallback = tank_data[tank_data['旋回速度'] != "-"]
+# === 【修正】車体旋回速度の確実な取得ロジック ===
+def get_hull_traverse(tank_data, s_susp):
+    # まずサスペンション内で表記揺れを含めて探す
+    susp_df = tank_data[tank_data['モジュール状態'] == s_susp]
+    if not susp_df.empty:
+        text = str(susp_df['詳細・モジュール生データ'].iloc[0])
+        match = re.search(r'(?:車体)?旋回速度 / ([\d\.]+)度', text)
+        if match: return match.group(1)
+    
+    # 取れなければ車体全体から探す (The Hunter等の対策)
+    fallback = tank_data[tank_data['詳細・モジュール生データ'].str.contains(r'(?:車体)?旋回速度 /', na=False)]
     if not fallback.empty:
-        return str(fallback['旋回速度'].iloc[0])
+        text = str(fallback['詳細・モジュール生データ'].iloc[0])
+        # 複数ある場合は最後(車体側)を取得
+        matches = re.findall(r'(?:車体)?旋回速度 / ([\d\.]+)度', text)
+        if matches: return matches[-1]
     return "-"
 
-def get_hull_traverse(tank_data, s_susp):
-    val = get_val(tank_data, s_susp, '旋回速度')
-    if val != "-": return val
-    fallback = tank_data[tank_data['旋回速度'] != "-"]
-    if not fallback.empty:
-        return str(fallback['旋回速度'].iloc[-1])
+def get_turret_traverse(tank_data, s_turret):
+    turret_df = tank_data[tank_data['モジュール状態'] == s_turret]
+    if not turret_df.empty:
+        text = str(turret_df['詳細・モジュール生データ'].iloc[0])
+        match = re.search(r'(?:砲塔)?旋回速度 / ([\d\.]+)度', text)
+        if match: return match.group(1)
     return "-"
 
 def get_split_str(val_str, idx):
@@ -276,12 +284,14 @@ def render_html_zukan(label, value, suffix=""):
 if st.session_state['app_mode'] == "🏠 ホーム (メインメニュー)":
     if LOGO_FILE:
         logo_path = os.path.join(base_dir, LOGO_FILE)
-        c1, c2 = st.columns([1, 8])
-        with c1:
-            st.image(logo_path, use_container_width=True)
+        c1, c2, c3 = st.columns([1, 4, 1])
         with c2:
-            st.markdown("<h1 style='color: #58a6ff !important; margin-top: 10px; margin-bottom: 0px;'>RECAT 総合データコンソール</h1>", unsafe_allow_html=True)
-            st.markdown("<p style='color: #8b949e !important;'>World of Tanks: Modern Armor 専用アナリティクスツール</p>", unsafe_allow_html=True)
+            col_l, col_r = st.columns([1, 4])
+            with col_l:
+                st.image(logo_path, use_container_width=True)
+            with col_r:
+                st.markdown("<h1 style='color: #58a6ff !important; margin-top: 15px;'>RECAT 総合データコンソール</h1>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; color: #8b949e !important;'>World of Tanks: Modern Armor 専用アナリティクスツール</p>", unsafe_allow_html=True)
     else:
         st.markdown("<h1 style='text-align: center; color: #58a6ff !important;'>RECAT 総合データコンソール</h1>", unsafe_allow_html=True)
         st.markdown("<p style='text-align: center; color: #8b949e !important;'>World of Tanks: Modern Armor 専用アナリティクスツール</p>", unsafe_allow_html=True)
@@ -317,7 +327,7 @@ if st.session_state['app_mode'] == "🏠 ホーム (メインメニュー)":
         if st.button("📸 スーパー簡易画像装甲測定", use_container_width=True):
             st.session_state['app_mode'] = "📸 スーパー簡易画像装甲測定"
             st.rerun()
-        st.markdown("<p style='text-align: center; color: #8b949e; font-size: 0.9em;'>画像をなぞって実装甲厚を測定</p>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; color: #8b949e; font-size: 0.9em;'>側面画像をなぞるだけで実装甲厚を測定</p>", unsafe_allow_html=True)
 
 
 # ==========================================
@@ -409,7 +419,6 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
         render_html_zukan("視認範囲", get_val(t_data, s_turret, '視認範囲(m)'), "M")
         conceal = get_val(t_data, s_turret, '発見可能範囲')
         render_html_zukan("発見可能範囲 (移動/静止)", f"{get_split_str(conceal, 0)} / {get_split_str(conceal, 1)}", "M")
-        # --- 確実な砲塔旋回速度 ---
         render_html_zukan("砲塔旋回速度", get_turret_traverse(t_data, s_turret), "度/秒")
         render_html_zukan("通信範囲", get_val(t_data, s_radio, '通信範囲(m)'), "M")
         render_html_zukan("モジュールの損傷", get_val(t_data, s_gun, 'モジュールの損傷'), "HP")
@@ -420,7 +429,6 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
         render_html_zukan("最大前進 / 後進速度", f"{get_val(t_data, s_engine, '最大前進速度')} / {get_val(t_data, s_engine, '最大後進速度')}", "KM/H")
         render_html_zukan("エンジン出力", get_val(t_data, s_engine, 'エンジン出力'), "HP")
         render_html_zukan("出力重量比", get_val(t_data, s_engine, '出力重量比'), "HP/T")
-        # --- 確実な車体旋回速度 ---
         render_html_zukan("車体旋回速度", get_hull_traverse(t_data, s_susp), "度/秒")
         ground_res = get_val(t_data, s_susp, '接地抵抗')
         render_html_zukan("接地抵抗 (ハード/ミド/ソフト)", f"{get_split_str(ground_res, 0)} / {get_split_str(ground_res, 1)} / {get_split_str(ground_res, 2)}", "")
@@ -545,7 +553,6 @@ elif st.session_state['app_mode'] == "⚖️ 車輌比較":
     html += comp_tr("視認範囲", get_val(dfA, s_turretA, '視認範囲(m)'), get_val(dfB, s_turretB, '視認範囲(m)'), True, "m")
     html += comp_tr("発見可能範囲 (移動時)", get_split_str(get_val(dfA, s_turretA, '発見可能範囲'), 0), get_split_str(get_val(dfB, s_turretB, '発見可能範囲'), 0), False, "m")
     html += comp_tr("発見可能範囲 (静止時)", get_split_str(get_val(dfA, s_turretA, '発見可能範囲'), 1), get_split_str(get_val(dfB, s_turretB, '発見可能範囲'), 1), False, "m")
-    # --- 確実な砲塔旋回速度 ---
     html += comp_tr("砲塔旋回速度", get_turret_traverse(dfA, s_turretA), get_turret_traverse(dfB, s_turretB), True, "度/秒")
     html += comp_tr("通信範囲", get_val(dfA, s_radioA, '通信範囲(m)'), get_val(dfB, s_radioB, '通信範囲(m)'), True, "m")
     html += f"<tr><th style='text-align: left; padding-left: 15px;'>🚀 機動性・エコノミー</th><th></th><th></th></tr>"
@@ -554,7 +561,6 @@ elif st.session_state['app_mode'] == "⚖️ 車輌比較":
     html += comp_tr("エンジン出力", get_val(dfA, s_engineA, 'エンジン出力'), get_val(dfB, s_engineB, 'エンジン出力'), True, "HP")
     html += comp_tr("出力重量比", get_val(dfA, s_engineA, '出力重量比'), get_val(dfB, s_engineB, '出力重量比'), True, "hp/t")
     html += comp_tr("火災発生率", get_val(dfA, s_engineA, '火災発生率'), get_val(dfB, s_engineB, '火災発生率'), False, "%")
-    # --- 確実な車体旋回速度 ---
     html += comp_tr("車体旋回速度", get_hull_traverse(dfA, s_suspA), get_hull_traverse(dfB, s_suspB), True, "度/秒")
     html += comp_tr("接地抵抗 (ハード)", get_split_str(get_val(dfA, s_suspA, '接地抵抗'), 0), get_split_str(get_val(dfB, s_suspB, '接地抵抗'), 0), False, "")
     html += comp_tr("接地抵抗 (ミディアム)", get_split_str(get_val(dfA, s_suspA, '接地抵抗'), 1), get_split_str(get_val(dfB, s_suspB, '接地抵抗'), 1), False, "")
@@ -786,8 +792,7 @@ elif st.session_state['app_mode'] == "📸 スーパー簡易画像装甲測定"
         normalization = st.number_input("標準化角度 (度):", min_value=0.0, max_value=20.0, value=default_norm, step=1.0)
         
         st.markdown("---")
-        # --- スライダー復活 (シンプルな記載のみ) ---
-        horizontal_angle = st.slider("➕ 車体を斜めにする (昼飯・豚飯角)", min_value=0.0, max_value=89.0, value=0.0, step=1.0)
+        horizontal_angle = st.slider("車体を斜めにする (昼飯・豚飯角)", min_value=0.0, max_value=89.0, value=0.0, step=1.0)
         
         st.markdown("---")
         if st.button("🔄 クリック位置をリセット", use_container_width=True):
@@ -820,7 +825,6 @@ elif st.session_state['app_mode'] == "📸 スーパー簡易画像装甲測定"
                 cos_theta = max(0.0, min(1.0, cos_theta))
                 angle_deg = math.degrees(math.acos(cos_theta))
 
-            # 3点クリックで取得した角度と、スライダーの角度を合成
             compound_angle_rad = math.acos(math.cos(math.radians(angle_deg)) * math.cos(math.radians(horizontal_angle)))
             compound_angle_deg = math.degrees(compound_angle_rad)
 
@@ -839,7 +843,8 @@ elif st.session_state['app_mode'] == "📸 スーパー簡易画像装甲測定"
                 if calc_angle >= 89.9: eff_armor = float('inf')
                 else: eff_armor = nominal_armor / math.cos(math.radians(calc_angle))
                 
-                st.markdown(f"{eff_armor:.1f} MM", unsafe_allow_html=True)
+                # --- 文字の巨大化クラスを確実に適用 ---
+                st.markdown(f"<div class='armor-result'>{eff_armor:.1f} MM</div>", unsafe_allow_html=True)
                 st.markdown(f"<div class='armor-subtext'>基本装甲 <b>{nominal_armor}mm</b> / 最終実効角度 <b>{calc_angle:.1f}°</b></div>", unsafe_allow_html=True)
                 st.success(f"🎯 測定角度: 約 **{compound_angle_deg:.1f} 度**")
             st.markdown("</div>", unsafe_allow_html=True)
