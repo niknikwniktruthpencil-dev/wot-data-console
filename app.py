@@ -42,7 +42,12 @@ for potential_logo in ["1782708565492 (1)-Photoroom_2.png", "1782708565492 (1)-P
         LOGO_FILE = potential_logo
         break
 
-SAMPLE_IMG_FILE = "Screenshot 2026-07-17 23-00-25_3.jpg"
+# サンプル画像のファイル名を柔軟に探す処理に変更
+SAMPLE_IMG_FILE = None
+for potential_img in ["Screenshot 2026-07-17 23-00-25.jpg", "Screenshot 2026-07-17 23-00-25_3.jpg"]:
+    if os.path.exists(os.path.join(base_dir, potential_img)):
+        SAMPLE_IMG_FILE = potential_img
+        break
 
 def get_base64_of_bin_file(bin_file):
     if bin_file:
@@ -322,7 +327,7 @@ if st.session_state['app_mode'] == "🏠 ホーム (メインメニュー)":
         if st.button("📸 スーパー簡易画像装甲測定", use_container_width=True):
             st.session_state['app_mode'] = "📸 スーパー簡易画像装甲測定"
             st.rerun()
-        st.markdown("<p style='text-align: center; color: #8b949e; font-size: 0.9em;'>画像をなぞるだけで実装甲厚を測定</p>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; color: #8b949e; font-size: 0.9em;'>画像をなぞって実装甲厚を測定</p>", unsafe_allow_html=True)
 
 
 # ==========================================
@@ -389,7 +394,6 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
         if dpm_sub != "-":
             render_html_zukan("分間ダメージ (副砲)", dpm_sub, "HP/分")
             render_html_zukan("100M 貫通力 (副砲)", get_split_str(get_val(t_data, s_gun, '貫通力100m(副砲)'), 0), "MM")
-            # === 追加: 副砲の500m貫通力 ===
             pen_500_sub = get_val(t_data, s_gun, '貫通力500m(副砲)')
             render_html_zukan("500M 貫通力 (副砲)", f"{get_split_str(pen_500_sub, 0)}", "MM")
             render_html_zukan("ダメージ (副砲)", get_split_str(get_val(t_data, s_gun, 'ダメージ(副砲)'), 0), "HP")
@@ -514,14 +518,10 @@ elif st.session_state['app_mode'] == "⚖️ 車輌比較":
     html += comp_tr("100 M 貫通力 (主砲 通常弾)", get_split_str(get_val(dfA, s_gunA, '貫通力100m(主砲)'), 0), get_split_str(get_val(dfB, s_gunB, '貫通力100m(主砲)'), 0), True, "mm")
     html += comp_tr("100 M 貫通力 (主砲 課金弾)", get_split_str(get_val(dfA, s_gunA, '貫通力100m(主砲)'), 1), get_split_str(get_val(dfB, s_gunB, '貫通力100m(主砲)'), 1), True, "mm")
     html += comp_tr("100 M 貫通力 (主砲 HE)", get_split_str(get_val(dfA, s_gunA, '貫通力100m(主砲)'), 2), get_split_str(get_val(dfB, s_gunB, '貫通力100m(主砲)'), 2), True, "mm")
-    
-    # === 追加: 比較テーブルの500m貫通力 ===
     html += comp_tr("500 M 貫通力 (主砲 通常弾)", get_split_str(get_val(dfA, s_gunA, '貫通力500m(主砲)'), 0), get_split_str(get_val(dfB, s_gunB, '貫通力500m(主砲)'), 0), True, "mm")
     html += comp_tr("500 M 貫通力 (主砲 課金弾)", get_split_str(get_val(dfA, s_gunA, '貫通力500m(主砲)'), 1), get_split_str(get_val(dfB, s_gunB, '貫通力500m(主砲)'), 1), True, "mm")
-    
     html += comp_tr("100 M 貫通力 (副砲)", get_split_str(get_val(dfA, s_gunA, '貫通力100m(副砲)'), 0), get_split_str(get_val(dfB, s_gunB, '貫通力100m(副砲)'), 0), None, "mm")
     html += comp_tr("500 M 貫通力 (副砲)", get_split_str(get_val(dfA, s_gunA, '貫通力500m(副砲)'), 0), get_split_str(get_val(dfB, s_gunB, '貫通力500m(副砲)'), 0), None, "mm")
-    
     html += comp_tr("ダメージ (主砲 通常弾)", get_split_str(get_val(dfA, s_gunA, 'ダメージ(主砲)'), 0), get_split_str(get_val(dfB, s_gunB, 'ダメージ(主砲)'), 0), True, "HP")
     html += comp_tr("ダメージ (主砲 課金弾)", get_split_str(get_val(dfA, s_gunA, 'ダメージ(主砲)'), 1), get_split_str(get_val(dfB, s_gunB, 'ダメージ(主砲)'), 1), True, "HP")
     html += comp_tr("ダメージ (主砲 HE)", get_split_str(get_val(dfA, s_gunA, 'ダメージ(主砲)'), 2), get_split_str(get_val(dfB, s_gunB, 'ダメージ(主砲)'), 2), True, "HP")
@@ -567,7 +567,6 @@ elif st.session_state['app_mode'] == "⚖️ 車輌比較":
     html += comp_tr("接地抵抗 (ソフト)", get_split_str(get_val(dfA, s_suspA, '接地抵抗'), 2), get_split_str(get_val(dfB, s_suspB, '接地抵抗'), 2), False, "")
     html += comp_tr("シルバー獲得レート", get_val(dfA, s_turretA, 'シルバー獲得レート'), get_val(dfB, s_turretB, 'シルバー獲得レート'), True, "%")
     html += comp_tr("EXP獲得レート", get_val(dfA, s_turretA, 'EXP獲得レート'), get_val(dfB, s_turretB, 'EXP獲得レート'), True, "%")
-    # === 追加: 比較テーブルのフリーEXP・搭乗員EXP ===
     html += comp_tr("フリーEXP獲得レート", get_val(dfA, s_turretA, 'フリーEXPレート'), get_val(dfB, s_turretB, 'フリーEXPレート'), True, "%")
     html += comp_tr("搭乗員EXP獲得レート", get_val(dfA, s_turretA, '搭乗員EXPレート'), get_val(dfB, s_turretB, '搭乗員EXPレート'), True, "%")
     html += comp_tr("最大マッチメイキング", get_val(dfA, s_turretA, '最大TIER'), get_val(dfB, s_turretB, '最大TIER'), None, "")
@@ -670,7 +669,7 @@ elif st.session_state['app_mode'] == "🏆 ランキング":
             st.dataframe(display_df.head(100), use_container_width=True)
 
 # ==========================================
-# 4. 装甲計算シミュレーター (手動)
+# 4. 装甲計算シミュレーター (手掌握)
 # ==========================================
 elif st.session_state['app_mode'] == "🛡️ 装甲計算シミュレーター":
     st.title("🛡️ 実質装甲厚 計算シミュレーター (昼飯・豚飯検証)")
@@ -764,10 +763,10 @@ elif st.session_state['app_mode'] == "🛡️ 装甲計算シミュレーター"
 # 5. 📸 スーパー簡易画像装甲測定
 # ==========================================
 elif st.session_state['app_mode'] == "📸 スーパー簡易画像装甲測定":
-    st.title("📸 スーパー簡易画像装甲測定 (3D複合計算)")
+    st.title("📸 スーパー簡易画像装甲測定 (3D複合計算・弾道指定版)")
     
     st.info("💡 **使い方 (3ステップで完了！)**\n\n"
-            "1. **画像を用意:** 測定したい箇所の画像（側面図 または 上面図）をアップロードします。\n"
+            "1. **画像を用意:** 「側面図」をアップロードします。\n"
             "2. **画像上の角度を測る (2回+1回クリック):** 画像上で調べたい装甲の【上端】と【下端】をクリックし、最後に**【弾が飛んでくる方向（発射元）】**をクリックします。\n"
             "3. **追加の角度を足す (スライダー):** さらに車体を斜めにしている場合（昼飯角など）は、左側のスライダーで設定すると、自動で3D合成されます！")
 
@@ -862,11 +861,11 @@ elif st.session_state['app_mode'] == "📸 スーパー簡易画像装甲測定"
         if uploaded_file is not None:
             target_image = Image.open(uploaded_file).convert("RGB")
         else:
-            sample_path = os.path.join(base_dir, SAMPLE_IMG_FILE)
-            if os.path.exists(sample_path):
+            if SAMPLE_IMG_FILE:
+                sample_path = os.path.join(base_dir, SAMPLE_IMG_FILE)
                 target_image = Image.open(sample_path).convert("RGB")
             else:
-                st.warning(f"⚠️ サンプル画像が見つかりません。({sample_path}) 画像をアップロードしてください。")
+                st.warning("⚠️ サンプル画像が見つかりません。画像をアップロードしてください。")
 
         if 'img_clicks' not in st.session_state:
             st.session_state['img_clicks'] = []
