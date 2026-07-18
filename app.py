@@ -3,7 +3,6 @@ import pandas as pd
 import re
 import math
 import os
-import base64
 
 # 画像クリック機能と描画機能のインポート
 try:
@@ -13,12 +12,20 @@ try:
 except ImportError:
     HAS_IMG_COORD = False
 
-# ページ設定
+# ページ設定 (必ず一番最初に記述)
 st.set_page_config(page_title="RECAT 総合データコンソール", layout="wide", initial_sidebar_state="expanded")
 
-# === セッションステートの初期化 (ページ遷移用) ===
+# === セッションステートの初期化 (ページ遷移バグ修正) ===
+PAGES = [
+    "🏠 ホーム (メインメニュー)", 
+    "📖 車輌図鑑", 
+    "⚖️ 車輌比較", 
+    "🏆 ランキング", 
+    "🛡️ 装甲計算シミュレーター", 
+    "📸 スーパー簡易画像装甲測定"
+]
 if 'app_mode' not in st.session_state:
-    st.session_state['app_mode'] = "🏠 ホーム (メインメニュー)"
+    st.session_state['app_mode'] = PAGES[0]
 
 # === ファイル名とパスの自動解決 ===
 base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -33,18 +40,7 @@ for potential_logo in ["1782708565492 (1)-Photoroom_2.png", "1782708565492 (1)-P
 
 SAMPLE_IMG_FILE = "Screenshot 2026-07-17 23-00-25_3.jpg"
 
-def get_base64_of_bin_file(bin_file):
-    if bin_file:
-        full_path = os.path.join(base_dir, bin_file)
-        if os.path.exists(full_path):
-            with open(full_path, 'rb') as f:
-                data = f.read()
-            return base64.b64encode(data).decode()
-    return None
-
-logo_base64 = get_base64_of_bin_file(LOGO_FILE)
-
-# === 全体デザイン設定 (完全ダークモード) ===
+# === 全体デザイン設定 (完全ダークモード & 背景ロゴ削除) ===
 css = """
 <style>
 /* メイン画面とサイドバーの背景を黒/ダークグレーに固定 */
@@ -63,12 +59,12 @@ li[role="option"] { background-color: #1c2128 !important; color: #ffffff !import
 li[role="option"]:hover { background-color: #30363d !important; color: #58a6ff !important; }
 input { background-color: #1c2128 !important; color: #ffffff !important; border: 1px solid #30363d !important; }
 
-/* ⚠️追加: ボタンの完全ダーク化設定 */
+/* ボタンの完全ダーク化設定 */
 div[data-testid="stButton"] button { background-color: #21262d !important; color: #58a6ff !important; border: 1px solid #30363d !important; border-radius: 8px !important; }
 div[data-testid="stButton"] button:hover { background-color: #30363d !important; color: #ffffff !important; border: 1px solid #58a6ff !important; }
 div[data-testid="stButton"] button p { color: inherit !important; }
 
-/* サイドバーのロゴ画像を不透明度15%に設定 */
+/* サイドバーのロゴ画像を不透明度15%に設定 (背景ロゴは完全に削除しました) */
 [data-testid="stSidebar"] img { opacity: 0.15 !important; }
 
 /* パネルとテーブルのデザイン */
@@ -87,25 +83,6 @@ div[data-testid="stButton"] button p { color: inherit !important; }
 .armor-subtext { text-align: center; color: #8b949e !important; font-size: 0.9em; margin-bottom: 15px;}
 </style>
 """
-
-# === ⚠️修正: ホーム画面のみロゴの透かしを表示 (スペースなしで左詰めに配置) ===
-if logo_base64 and st.session_state.get('sidebar_radio', "🏠 ホーム (メインメニュー)") == "🏠 ホーム (メインメニュー)":
-    css += f"""
-<style>
-[data-testid="stAppViewContainer"] {{
-    background-image: url("data:image/png;base64,{logo_base64}");
-    background-position: center;
-    background-repeat: no-repeat;
-    background-size: 450px;
-    background-attachment: fixed;
-}}
-[data-testid="stAppViewContainer"]::before {{
-    content: ""; position: absolute; top: 0; right: 0; bottom: 0; left: 0;
-    background-color: rgba(13, 17, 23, 0.88); z-index: -1;
-}}
-</style>
-"""
-
 st.markdown(css, unsafe_allow_html=True)
 
 @st.cache_data
@@ -231,7 +208,7 @@ if df.empty:
     st.stop()
 
 # ==========================================
-# サイドバーとメインメニューの設定
+# サイドバーとメインメニューの連携設定
 # ==========================================
 if LOGO_FILE:
     logo_path = os.path.join(base_dir, LOGO_FILE)
@@ -239,14 +216,18 @@ if LOGO_FILE:
 else:
     st.sidebar.title("RECAT Console")
     
-st.session_state['app_mode'] = st.sidebar.radio("機能メニュー", [
-    "🏠 ホーム (メインメニュー)", 
-    "📖 車輌図鑑", 
-    "⚖️ 車輌比較", 
-    "🏆 ランキング", 
-    "🛡️ 装甲計算シミュレーター", 
-    "📸 スーパー簡易画像装甲測定"
-], key="sidebar_radio")
+# 選択肢の同期バグを防ぐため、状態と連携させる
+selected_mode = st.sidebar.radio(
+    "機能メニュー", 
+    PAGES, 
+    index=PAGES.index(st.session_state['app_mode'])
+)
+
+# もしサイドバーで別の項目がクリックされたら、状態を更新して再読み込み
+if selected_mode != st.session_state['app_mode']:
+    st.session_state['app_mode'] = selected_mode
+    st.rerun()
+
 st.sidebar.markdown("---")
 st.sidebar.info("💡 **Tips:** PC環境では画面幅を広げるとより見やすくなります。")
 
@@ -284,6 +265,7 @@ def render_html_zukan(label, value, suffix=""):
 # 0. ホーム（メインメニュー）
 # ==========================================
 if st.session_state['app_mode'] == "🏠 ホーム (メインメニュー)":
+    # 画面中央に大きくロゴを表示
     if LOGO_FILE:
         c1, c2, c3 = st.columns([1, 2, 1])
         with c2:
@@ -295,30 +277,36 @@ if st.session_state['app_mode'] == "🏠 ホーム (メインメニュー)":
     
     st.markdown("### 💡 ツールを選択してください")
     
-    # ジャンプ用ボタンの配置
+    # ⚠️バグ修正済: ジャンプ用ボタン (押したら状態を書き換えて一発でリロードする)
     b1, b2, b3 = st.columns(3)
     with b1:
-        if st.button("📖 車輌図鑑\n\n全ステータスや隠し性能を確認", use_container_width=True):
-            st.session_state['sidebar_radio'] = "📖 車輌図鑑"
+        if st.button("📖 車輌図鑑", use_container_width=True):
+            st.session_state['app_mode'] = "📖 車輌図鑑"
             st.rerun()
+        st.markdown("<p style='text-align: center; color: #8b949e; font-size: 0.9em;'>全ステータスや隠し性能を確認</p>", unsafe_allow_html=True)
     with b2:
-        if st.button("⚖️ 車輌比較\n\n2つの車輌の性能を並べて比較", use_container_width=True):
-            st.session_state['sidebar_radio'] = "⚖️ 車輌比較"
+        if st.button("⚖️ 車輌比較", use_container_width=True):
+            st.session_state['app_mode'] = "⚖️ 車輌比較"
             st.rerun()
+        st.markdown("<p style='text-align: center; color: #8b949e; font-size: 0.9em;'>2つの車輌の性能を並べて比較</p>", unsafe_allow_html=True)
     with b3:
-        if st.button("🏆 ランキング\n\nDPMや貫通力などの最強ランキング", use_container_width=True):
-            st.session_state['sidebar_radio'] = "🏆 ランキング"
+        if st.button("🏆 ランキング", use_container_width=True):
+            st.session_state['app_mode'] = "🏆 ランキング"
             st.rerun()
+        st.markdown("<p style='text-align: center; color: #8b949e; font-size: 0.9em;'>DPMや貫通力などの最強ランキング</p>", unsafe_allow_html=True)
             
+    st.markdown("<br>", unsafe_allow_html=True)
     b4, b5 = st.columns(2)
     with b4:
-        if st.button("🛡️ 装甲計算シミュレーター\n\n昼飯・豚飯時の実質装甲厚を手動計算", use_container_width=True):
-            st.session_state['sidebar_radio'] = "🛡️ 装甲計算シミュレーター"
+        if st.button("🛡️ 装甲計算シミュレーター", use_container_width=True):
+            st.session_state['app_mode'] = "🛡️ 装甲計算シミュレーター"
             st.rerun()
+        st.markdown("<p style='text-align: center; color: #8b949e; font-size: 0.9em;'>昼飯・豚飯時の実質装甲厚を手動計算</p>", unsafe_allow_html=True)
     with b5:
-        if st.button("📸 スーパー簡易画像装甲測定\n\nスクショから自動的に実装甲厚を計算", use_container_width=True):
-            st.session_state['sidebar_radio'] = "📸 スーパー簡易画像装甲測定"
+        if st.button("📸 スーパー簡易画像装甲測定", use_container_width=True):
+            st.session_state['app_mode'] = "📸 スーパー簡易画像装甲測定"
             st.rerun()
+        st.markdown("<p style='text-align: center; color: #8b949e; font-size: 0.9em;'>スクショから自動的に実装甲厚を計算</p>", unsafe_allow_html=True)
 
 
 # ==========================================
@@ -364,8 +352,7 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
     st.markdown("---")
     d1, d2, d3, d4 = st.columns(4)
     with d1:
-        st.markdown("<div class='panel-box'>", unsafe_allow_html=True)
-        st.markdown("<div class='panel-title'>💥 攻撃性能 (主砲)</div>", unsafe_allow_html=True)
+        st.markdown("#### 💥 攻撃性能 (主砲)")
         render_html_zukan("分間ダメージ", get_val(t_data, s_gun, 'DPM(主砲)'), "HP/分")
         pen_main = get_val(t_data, s_gun, '貫通力100m(主砲)')
         render_html_zukan("100M 貫通力 (通常/金/HE)", f"{get_split_str(pen_main, 0)} / {get_split_str(pen_main, 1)} / {get_split_str(pen_main, 2)}", "MM")
@@ -377,10 +364,8 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
         render_html_zukan("照準時間", get_val(t_data, s_gun, '照準時間(秒)'), "秒")
         render_html_zukan("精度", get_val(t_data, s_gun, '精度(m)'), "M")
         render_html_zukan("射撃速度", get_val(t_data, s_gun, '射撃速度'), "発/分")
-        st.markdown("</div>", unsafe_allow_html=True)
     with d2:
-        st.markdown("<div class='panel-box'>", unsafe_allow_html=True)
-        st.markdown("<div class='panel-title'>💥 攻撃・砲弾特性</div>", unsafe_allow_html=True)
+        st.markdown("#### 💥 攻撃・砲弾特性")
         dpm_sub = get_val(t_data, s_gun, 'DPM(副砲)')
         if dpm_sub != "-":
             render_html_zukan("分間ダメージ (副砲)", dpm_sub, "HP/分")
@@ -396,10 +381,8 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
         render_html_zukan("総弾数", get_val(t_data, s_gun, '総弾数'), "発")
         render_html_zukan("砲塔旋回中の射撃精度", get_val(t_data, s_gun, '砲塔旋回中の射撃精度'), "M")
         render_html_zukan("攻撃半径 (榴弾)", get_val(t_data, s_gun, '攻撃半径'), "M")
-        st.markdown("</div>", unsafe_allow_html=True)
     with d3:
-        st.markdown("<div class='panel-box'>", unsafe_allow_html=True)
-        st.markdown("<div class='panel-title'>🛡️ 防御・視認</div>", unsafe_allow_html=True)
+        st.markdown("#### 🛡️ 防御・視認")
         render_html_zukan("耐久値 (HP)", get_val(t_data, s_turret, 'HP'), "HP")
         hull_armor = get_val(t_data, s_turret, '車体装甲(mm)')
         render_html_zukan("車体装甲 (前/側/背)", f"{get_split_str(hull_armor, 0)} / {get_split_str(hull_armor, 1)} / {get_split_str(hull_armor, 2)}", "MM")
@@ -411,10 +394,8 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
         render_html_zukan("砲塔旋回速度", get_val(t_data, s_turret, '旋回速度'), "度/秒")
         render_html_zukan("通信範囲", get_val(t_data, s_radio, '通信範囲(m)'), "M")
         render_html_zukan("モジュールの損傷", get_val(t_data, s_gun, 'モジュールの損傷'), "HP")
-        st.markdown("</div>", unsafe_allow_html=True)
     with d4:
-        st.markdown("<div class='panel-box'>", unsafe_allow_html=True)
-        st.markdown("<div class='panel-title'>🚀 機動性・エコノミー</div>", unsafe_allow_html=True)
+        st.markdown("#### 🚀 機動性・エコノミー")
         render_html_zukan("最大前進 / 後進速度", f"{get_val(t_data, s_engine, '最大前進速度')} / {get_val(t_data, s_engine, '最大後進速度')}", "KM/H")
         render_html_zukan("エンジン出力", get_val(t_data, s_engine, 'エンジン出力'), "HP")
         render_html_zukan("出力重量比", get_val(t_data, s_engine, '出力重量比'), "HP/T")
@@ -426,7 +407,6 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
         render_html_zukan("EXP獲得レート", get_val(t_data, s_turret, 'EXP獲得レート'), "%")
         render_html_zukan("フリー / 搭乗員EXPレート", f"{get_val(t_data, s_turret, 'フリーEXPレート')}% / {get_val(t_data, s_turret, '搭乗員EXPレート')}%", "")
         render_html_zukan("最大マッチメイキング", get_val(t_data, s_turret, '最大TIER'), "")
-        st.markdown("</div>", unsafe_allow_html=True)
 
 # ==========================================
 # 2. 車輌比較
@@ -815,8 +795,6 @@ elif st.session_state['app_mode'] == "📸 スーパー簡易画像装甲測定"
 
     with col_image:
         st.markdown("<div class='panel-title'>📸 画像測定ボード</div>", unsafe_allow_html=True)
-        
-        # ⚠️余分な空欄を防ぐために、アップローダーの配置をシンプル化
         uploaded_file = st.file_uploader("真横から撮影したスクリーンショットをアップロード (任意)", type=["png", "jpg", "jpeg"])
         
         target_image = None
