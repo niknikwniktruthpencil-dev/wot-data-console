@@ -3,6 +3,7 @@ import pandas as pd
 import re
 import math
 import os
+import base64
 
 # 画像クリック機能と描画機能のインポート
 try:
@@ -40,24 +41,52 @@ for potential_logo in ["1782708565492 (1)-Photoroom_2.png", "1782708565492 (1)-P
 
 SAMPLE_IMG_FILE = "Screenshot 2026-07-17 23-00-25_3.jpg"
 
-# === 全体デザイン設定 (完全ダークモード & 背景ロゴ削除) ===
+# === 画像のBase64エンコード関数 (背景透かし用) ===
+def get_base64_of_bin_file(bin_file):
+    if bin_file:
+        full_path = os.path.join(base_dir, bin_file)
+        if os.path.exists(full_path):
+            with open(full_path, 'rb') as f:
+                data = f.read()
+            return base64.b64encode(data).decode()
+    return None
+
+logo_base64 = get_base64_of_bin_file(LOGO_FILE)
+
+# === 全体デザイン設定 (白文字バグ修正済みのダークモード) ===
 css = """
 <style>
 /* メイン画面とサイドバーの背景を黒/ダークグレーに固定 */
 .stApp { background-color: #0d1117 !important; }
 [data-testid="stSidebar"] { background-color: #161b22 !important; }
 
-/* 全体の文字色を白系に固定 */
-h1, h2, h3, h4, h5, h6, p, span, label, div { color: #e6edf3 !important; }
+/* ⚠️修正: 広範囲すぎるdiv指定をやめ、必要な部分だけ文字を白に固定 */
+.stApp, .stApp p, .stApp label, .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6, .stApp span { 
+    color: #e6edf3 !important; 
+}
 
-/* タブ（ドロップダウン）展開時のメニューも強制ダークモード化 */
-div[data-baseweb="select"] > div { background-color: #1c2128 !important; color: #ffffff !important; border-color: #30363d !important; }
-div[data-baseweb="popover"] { background-color: #1c2128 !important; }
-div[data-baseweb="popover"] * { color: #e6edf3 !important; }
-ul[role="listbox"] { background-color: #1c2128 !important; }
-li[role="option"] { background-color: #1c2128 !important; color: #ffffff !important; }
-li[role="option"]:hover { background-color: #30363d !important; color: #58a6ff !important; }
-input { background-color: #1c2128 !important; color: #ffffff !important; border: 1px solid #30363d !important; }
+/* ⚠️修正: タブ（ドロップダウン）展開時のメニュー背景と文字色をピンポイントで強制ダーク化 */
+ul[role="listbox"], ul[role="listbox"] * {
+    background-color: #1c2128 !important;
+    color: #ffffff !important;
+}
+li[role="option"] {
+    background-color: #1c2128 !important;
+    color: #ffffff !important;
+}
+li[role="option"]:hover, li[role="option"]:focus, li[aria-selected="true"] {
+    background-color: #30363d !important;
+    color: #58a6ff !important;
+}
+div[data-baseweb="popover"] > div {
+    background-color: #1c2128 !important;
+}
+div[data-baseweb="select"] > div {
+    background-color: #21262d !important; 
+    color: #ffffff !important; 
+    border-color: #30363d !important; 
+}
+input { background-color: #21262d !important; color: #ffffff !important; border: 1px solid #30363d !important; }
 
 /* ボタンの完全ダーク化設定 */
 div[data-testid="stButton"] button { background-color: #21262d !important; color: #58a6ff !important; border: 1px solid #30363d !important; border-radius: 8px !important; }
@@ -83,6 +112,25 @@ div[data-testid="stButton"] button p { color: inherit !important; }
 .armor-subtext { text-align: center; color: #8b949e !important; font-size: 0.9em; margin-bottom: 15px;}
 </style>
 """
+
+# === ホーム画面のみロゴの透かしを表示する ===
+if logo_base64 and st.session_state['app_mode'] == "🏠 ホーム (メインメニュー)":
+    css += f"""
+    <style>
+    [data-testid="stAppViewContainer"] {{
+        background-image: url("data:image/png;base64,{logo_base64}");
+        background-position: center;
+        background-repeat: no-repeat;
+        background-size: 450px;
+        background-attachment: fixed;
+    }}
+    [data-testid="stAppViewContainer"]::before {{
+        content: ""; position: absolute; top: 0; right: 0; bottom: 0; left: 0;
+        background-color: rgba(13, 17, 23, 0.88); z-index: -1;
+    }}
+    </style>
+    """
+
 st.markdown(css, unsafe_allow_html=True)
 
 @st.cache_data
@@ -106,7 +154,7 @@ def load_and_parse_data():
         return [m.replace(' ', '').strip('/') for m in re.findall(pattern, str(text))]
 
     def extract_basics(text):
-        m = re.search(r'ホーム › 戦車事典 › ([^/]+) / (.*?) / (?:価格|戦闘獲得レート|主要性能)', str(text))
+        m = re.search(r'ホーム › 戦車事典 › ([^/]+) / (.*?) / (?:価格|戦闘獲得レート|主要性能)', text)
         if m: return pd.Series([m.group(1).replace(' ', ''), re.sub(r'\s*/\s*(プレミアム車輌|退役車輌)$', '', m.group(2).strip())])
         return pd.Series(["-", "-"])
 
@@ -208,7 +256,7 @@ if df.empty:
     st.stop()
 
 # ==========================================
-# サイドバーとメインメニューの連携設定
+# サイドバーとメインメニューの設定
 # ==========================================
 if LOGO_FILE:
     logo_path = os.path.join(base_dir, LOGO_FILE)
@@ -216,17 +264,12 @@ if LOGO_FILE:
 else:
     st.sidebar.title("RECAT Console")
     
-# 選択肢の同期バグを防ぐため、状態と連携させる
-selected_mode = st.sidebar.radio(
+# セッションステートと連動するラジオボタン
+st.session_state['app_mode'] = st.sidebar.radio(
     "機能メニュー", 
     PAGES, 
     index=PAGES.index(st.session_state['app_mode'])
 )
-
-# もしサイドバーで別の項目がクリックされたら、状態を更新して再読み込み
-if selected_mode != st.session_state['app_mode']:
-    st.session_state['app_mode'] = selected_mode
-    st.rerun()
 
 st.sidebar.markdown("---")
 st.sidebar.info("💡 **Tips:** PC環境では画面幅を広げるとより見やすくなります。")
@@ -277,7 +320,6 @@ if st.session_state['app_mode'] == "🏠 ホーム (メインメニュー)":
     
     st.markdown("### 💡 ツールを選択してください")
     
-    # ⚠️バグ修正済: ジャンプ用ボタン (押したら状態を書き換えて一発でリロードする)
     b1, b2, b3 = st.columns(3)
     with b1:
         if st.button("📖 車輌図鑑", use_container_width=True):
@@ -795,6 +837,7 @@ elif st.session_state['app_mode'] == "📸 スーパー簡易画像装甲測定"
 
     with col_image:
         st.markdown("<div class='panel-title'>📸 画像測定ボード</div>", unsafe_allow_html=True)
+        
         uploaded_file = st.file_uploader("真横から撮影したスクリーンショットをアップロード (任意)", type=["png", "jpg", "jpeg"])
         
         target_image = None
@@ -813,7 +856,8 @@ elif st.session_state['app_mode'] == "📸 スーパー簡易画像装甲測定"
             st.session_state['img_clicks'] = []
             
         if target_image is not None:
-            target_image.thumbnail((1000, 1000))
+            # 右側カラムにきっちり収まるように自動縮小 (角度の比率には影響なし)
+            target_image.thumbnail((700, 700))
             
             draw_image = target_image.copy()
             draw = ImageDraw.Draw(draw_image)
