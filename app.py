@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 import re
 import math
@@ -15,6 +16,26 @@ except ImportError:
 
 # ページ設定 (サイドバーを常に展開する設定)
 st.set_page_config(page_title="RECAT 総合データコンソール", layout="wide", initial_sidebar_state="expanded")
+
+# === スマホでのピンチズーム(拡大縮小)を強制的に許可するハック ===
+# Streamlitが自動で設定する「ズーム禁止」を1秒に1回監視して破壊し、許可状態にします。
+components.html(
+    """
+    <script>
+    setInterval(function() {
+        try {
+            var metaTags = window.parent.document.getElementsByTagName('meta');
+            for (var i = 0; i < metaTags.length; i++) {
+                if (metaTags[i].name === "viewport" && metaTags[i].content.includes("user-scalable=no")) {
+                    metaTags[i].content = "width=device-width, initial-scale=1.0, maximum-scale=10.0, user-scalable=yes";
+                }
+            }
+        } catch(e) {}
+    }, 1000);
+    </script>
+    """,
+    height=0, width=0
+)
 
 # === セッションステートの初期化 ===
 PAGES = [
@@ -244,22 +265,29 @@ div[data-testid="stButton"] button:hover {{ background-color: rgba(88, 166, 255,
     .off-val {{ font-size: 1.0em; }}
     .off-suf {{ font-size: 0.8em; }}
     
-    /* ======== スマホ版モジュールの「完全強制・5等分グリッド」ハック ======== */
-    /* Flexboxの押し出しを無効化し、数学的に画面を5つに割る CSS Grid を使用 */
-    .mobile-grid-anchor + div[data-testid="stHorizontalBlock"] {{
-        display: grid !important;
-        grid-template-columns: repeat(5, 1fr) !important;
-        gap: 4px !important;
+    /* ======== スマホ版モジュールの「横並び全収め（絶対に押し出させない）」最強版 ======== */
+    /* コンテナが縦に並ぶのを強制的に阻止し、横に並べる */
+    div[data-testid="stHorizontalBlock"]:has(.mod-header) {{
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        overflow-x: visible !important;
         width: 100% !important;
-        max-width: 100vw !important;
-        overflow: hidden !important;
+        gap: 2px !important;
+        padding: 0 !important;
+        margin-left: -4px !important;
+        margin-right: -4px !important;
     }}
     
-    .mobile-grid-anchor + div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {{
-        width: auto !important;
-        min-width: 0 !important;
-        padding: 0 !important;
+    /* 5つの列を均等に圧縮し、画面外にはみ出させない */
+    div[data-testid="stHorizontalBlock"]:has(.mod-header) > div[data-testid="column"] {{
+        flex: 0 0 19% !important; /* 強制的に約1/5の幅に固定 */
+        width: 19% !important;
+        min-width: 19% !important;
+        max-width: 19% !important;
+        padding: 0 1px !important;
         margin: 0 !important;
+        overflow: hidden !important;
     }}
     
     /* スマホ版モジュールヘッダー文字調整 */
@@ -273,21 +301,36 @@ div[data-testid="stButton"] button:hover {{ background-color: rgba(88, 166, 255,
         text-align: center !important;
     }}
     
-    /* ラジオボタン枠の調整 */
+    /* ラジオボタンの外枠も強制的に縮小 */
+    div[data-testid="stHorizontalBlock"]:has(.mod-header) div[data-testid="stRadio"],
+    div[data-testid="stHorizontalBlock"]:has(.mod-header) div[role="radiogroup"] {{
+        width: 100% !important;
+        min-width: 0 !important;
+    }}
+    
+    /* ラジオボタン枠をスマホでさらにコンパクトに */
     .stRadio div[role="radiogroup"] > label {{
-        padding: 6px 2px !important;
         min-height: 48px !important;
-        height: 100% !important;
+        height: auto !important;
+        padding: 4px 2px !important;
+        margin-bottom: 4px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: 100% !important;
+        min-width: 0 !important;
     }}
     
     /* 文字が枠を押し広げようとするのを完全に無力化 */
     .stRadio div[role="radiogroup"] > label p {{
         font-size: 0.55rem !important;
-        white-space: pre-wrap !important; /* テキストの折り返しを強制 */
+        white-space: normal !important; /* テキストの折り返しを強制 */
         word-break: break-all !important;
         overflow-wrap: anywhere !important;
-        line-height: 1.1 !important;
+        line-height: 1.05 !important;
+        margin: 0 !important;
         text-align: center !important;
+        width: 100% !important;
     }}
     /* ============================================================ */
 
@@ -820,7 +863,7 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
     radios = t_data[t_data['モジュール種類'] == '無線']['モジュール状態'].unique()
     
     with modules_container:
-        st.markdown("<div class='mobile-grid-anchor'></div>", unsafe_allow_html=True)
+        st.markdown("<div class='mod-header'></div>", unsafe_allow_html=True) # ここをトリガーにしてレイアウトを圧縮
         mc1, mc2, mc3, mc4, mc5 = st.columns(5)
         with mc1:
             st.markdown("<div class='mod-header'>主砲</div>", unsafe_allow_html=True)
@@ -942,7 +985,7 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
     vision_v = get_vision_values(vision, apply_optics_zukan, apply_binocs_zukan, apply_sit_aware_zukan, crew_mult, skill_mult)
     
     conceal = get_val(t_data, s_turret, '発見可能範囲')
-    move_v, still_v = get_conceal_values(conceal, tank_type_zukan, apply_camo_zukan, apply_adv_camo_zukan, apply_camo_net_zukan, apply_camo_skill_zukan, apply_green_thumb_zukan, skill_mult_A)
+    move_v, still_v = get_conceal_values(conceal, tank_type_zukan, apply_camo_zukan, apply_adv_camo_zukan, apply_camo_net_zukan, apply_camo_skill_zukan, apply_green_thumb_zukan, skill_mult)
     camo_fmt = f"{move_v}/{still_v}"
 
     silver_rate = str(t_data['シルバー獲得レート'].iloc[0]) if not t_data.empty else "-"
@@ -1001,7 +1044,7 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
 
     # === モジュール詳細の描画 ===
     with details_container:
-        st.markdown("<div class='mobile-grid-anchor'></div>", unsafe_allow_html=True)
+        st.markdown("<div class='mod-header'></div>", unsafe_allow_html=True)
         d1, d2, d3, d4, d5 = st.columns(5)
         
         with d1:
@@ -1111,7 +1154,7 @@ elif st.session_state['app_mode'] == "⚖️ 車輌比較":
         
         dfA = df[df['正確な車輌名'] == tankA]
         
-        st.markdown("<div class='mobile-grid-anchor'></div>", unsafe_allow_html=True)
+        st.markdown("<div class='mod-header'></div>", unsafe_allow_html=True)
         ca1, ca2, ca3 = st.columns(3)
         gA = dfA[dfA['モジュール種類'] == '主砲']['モジュール状態'].unique()
         tA = dfA[dfA['モジュール種類'] == '砲塔']['モジュール状態'].unique()
@@ -1120,7 +1163,7 @@ elif st.session_state['app_mode'] == "⚖️ 車輌比較":
         s_turretA = ca2.selectbox("砲塔(A)", tA) if len(tA)>0 else None
         s_engineA = ca3.selectbox("エンジン(A)", eA) if len(eA)>0 else None
         
-        st.markdown("<div class='mobile-grid-anchor'></div>", unsafe_allow_html=True)
+        st.markdown("<div class='mod-header'></div>", unsafe_allow_html=True)
         ca4, ca5, _ = st.columns(3)
         suspA = dfA[dfA['モジュール種類'] == 'サスペンション']['モジュール状態'].unique()
         rA = dfA[dfA['モジュール種類'] == '無線']['モジュール状態'].unique()
@@ -1185,7 +1228,7 @@ elif st.session_state['app_mode'] == "⚖️ 車輌比較":
         
         dfB = df[df['正確な車輌名'] == tankB]
         
-        st.markdown("<div class='mobile-grid-anchor'></div>", unsafe_allow_html=True)
+        st.markdown("<div class='mod-header'></div>", unsafe_allow_html=True)
         cb1, cb2, cb3 = st.columns(3)
         gB = dfB[dfB['モジュール種類'] == '主砲']['モジュール状態'].unique()
         tB = dfB[dfB['モジュール種類'] == '砲塔']['モジュール状態'].unique()
@@ -1194,7 +1237,7 @@ elif st.session_state['app_mode'] == "⚖️ 車輌比較":
         s_turretB = cb2.selectbox("砲塔(B)", tB) if len(tB)>0 else None
         s_engineB = cb3.selectbox("エンジン(B)", eB) if len(eB)>0 else None
         
-        st.markdown("<div class='mobile-grid-anchor'></div>", unsafe_allow_html=True)
+        st.markdown("<div class='mod-header'></div>", unsafe_allow_html=True)
         cb4, cb5, _ = st.columns(3)
         suspB = dfB[dfB['モジュール種類'] == 'サスペンション']['モジュール状態'].unique()
         rB = dfB[dfB['モジュール種類'] == '無線']['モジュール状態'].unique()
@@ -1569,7 +1612,7 @@ elif st.session_state['app_mode'] == "🛡️ 装甲計算シミュレーター"
         angle_deg = st.slider("着弾角度 (度) ※0度が真正面からの直撃、70度以上は跳弾危険域", min_value=0.0, max_value=89.0, value=20.0, step=1.0)
         
         # WOT特有の弾種による標準化をワンクリックでセット
-        ammo_type = st.radio("被弾する弾種 (標準化の自動適用):", ["AP弾 (標準化 5度)", "APCR弾 (標準化 2度)", "HEAT / HE弾 (標準化 0度)", "カスタム (手 manual)"])
+        ammo_type = st.radio("被弾する弾種 (標準化の自動適用):", ["AP弾 (標準化 5度)", "APCR弾 (標準化 2度)", "HEAT / HE弾 (標準化 0度)", "カスタム (手動入力)"])
         
         if "AP弾" in ammo_type: default_norm = 5.0
         elif "APCR" in ammo_type: default_norm = 2.0
