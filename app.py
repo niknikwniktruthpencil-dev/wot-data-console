@@ -47,7 +47,7 @@ for potential_img in ["Screenshot 2026-07-17 23-00-25.jpg", "Screenshot 2026-07-
         SAMPLE_IMG_FILE = potential_img
         break
 
-# === CSS (完全ダークモード・スマホレスポンシブ対応) ===
+# === CSS (完全ダークモード・スマホレスポンシブ対応・ロゴ大型化) ===
 css_string = """
 <style>
 .stApp { background-color: #0d1117 !important; }
@@ -77,8 +77,10 @@ div[data-testid="stButton"] button p { color: inherit !important; }
 .armor-result { font-size: 3.5em !important; font-weight: bold !important; color: #ff7b72 !important; text-align: center !important; margin-top: 10px !important; margin-bottom: 5px !important; line-height: 1.1 !important; display: block !important;}
 .armor-result-bounce { font-size: 2.8em !important; font-weight: bold !important; color: #8b949e !important; text-align: center !important; margin-top: 10px !important; margin-bottom: 5px !important; display: block !important;}
 .armor-subtext { text-align: center !important; color: #8b949e !important; font-size: 0.9em !important; margin-bottom: 15px !important; display: block !important;}
-.header-logo { width: 50px; height: auto; vertical-align: middle; margin-right: 10px; }
-.sidebar-logo { width: 40px; height: auto; vertical-align: middle; margin-right: 10px; }
+
+/* ロゴの大型化と中央揃え化 */
+.header-logo { width: 140px; height: auto; display: block; margin: 0 auto 15px auto; }
+.sidebar-logo { width: 110px; height: auto; display: block; margin: 0 auto 10px auto; }
 
 /* === スマホ向け専用レイアウト（画面幅768px以下） === */
 @media (max-width: 768px) {
@@ -99,7 +101,8 @@ div[data-testid="stButton"] button p { color: inherit !important; }
     .armor-result-bounce { font-size: 2.0em !important; }
     
     /* ヘッダーの調整 */
-    h1 { font-size: 1.5em !important; }
+    h1 { font-size: 1.5em !important; margin-top: -10px !important; }
+    .header-logo { width: 100px; margin-bottom: 10px; }
 }
 </style>
 """
@@ -174,7 +177,11 @@ def load_and_parse_data():
     df['弾薬の最大射程'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'弾薬の最大射程 / ([\d/ \.]+)M', x))
     df['砲弾タイプ'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'砲弾タイプ / ([A-Z/ \.]+)', x))
     df['総弾数'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'総弾数 / (\d+)発', x))
+    
+    # 走行中の精度 (移動時精度)
+    df['走行中の精度'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'走行中の精度.*?([\d\.]+)[ \n]*M', x))
     df['砲塔旋回中の射撃精度'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'砲塔旋回中の射撃精度 / ([\d\.]+)M', x))
+    
     df['俯角'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'俯角 / ([\d\.]+)度', x))
     df['仰角'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'仰角 / ([\d\.]+)度', x))
     df['水平可動域'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'水平可動域 / ([\-\d/ \.]+)度', x))
@@ -293,6 +300,17 @@ def calc_camo_bonuses(tank_type, apply_camo, apply_adv_camo, apply_camo_net):
     still_bonus = base_bonus + max(adv_camo_bonus, camo_net_bonus)
     return move_bonus, still_bonus
 
+def calc_crew_and_skill_mult(apply_vents, apply_food_passive, apply_food_active, apply_born_leader):
+    bonus_sum = 0.0
+    if apply_vents: bonus_sum += 5.0
+    if apply_food_passive: bonus_sum += 5.0
+    if apply_food_active: bonus_sum += 15.0
+    if apply_born_leader: bonus_sum += 5.0
+    
+    crew_mult = 1.0 + (bonus_sum * 0.0043)
+    skill_mult = 1.0 + (bonus_sum / 100.0)
+    return crew_mult, skill_mult
+
 def get_conceal_values(conceal_str, tank_type, apply_camo, apply_adv_camo, apply_camo_net, apply_camo_skill, apply_green_thumb, skill_mult):
     move_c = get_split_str(conceal_str, 0)
     still_c = get_split_str(conceal_str, 1)
@@ -316,17 +334,6 @@ def get_conceal_values(conceal_str, tank_type, apply_camo, apply_adv_camo, apply
         return f"{move_val:.2f}", f"{still_val:.2f}"
     except:
         return move_c, still_c
-
-def calc_crew_and_skill_mult(apply_vents, apply_food_passive, apply_food_active, apply_born_leader):
-    bonus_sum = 0.0
-    if apply_vents: bonus_sum += 5.0
-    if apply_food_passive: bonus_sum += 5.0
-    if apply_food_active: bonus_sum += 15.0
-    if apply_born_leader: bonus_sum += 5.0
-    
-    crew_mult = 1.0 + (bonus_sum * 0.0043)
-    skill_mult = 1.0 + (bonus_sum / 100.0)
-    return crew_mult, skill_mult
 
 def get_vision_values(vision_str, apply_optics, apply_binocs, apply_sit_aware, crew_mult, skill_mult):
     if pd.isna(vision_str) or vision_str == "-":
@@ -372,9 +379,9 @@ def get_base64_of_bin_file(bin_file):
 logo_base64 = get_base64_of_bin_file(LOGO_FILE)
 logo_html = ""
 if logo_base64:
-     logo_html = f'<img src="data:image/png;base64,{logo_base64}" class="sidebar-logo">'
+     logo_html = f'<div style="text-align: center;"><img src="data:image/png;base64,{logo_base64}" class="sidebar-logo"></div>'
 
-st.sidebar.markdown(f"<h3 style='margin-top:0px;'>{logo_html}RECAT Console</h3>", unsafe_allow_html=True)
+st.sidebar.markdown(f"{logo_html}<h3 style='margin-top:0px; text-align:center;'>RECAT Console</h3>", unsafe_allow_html=True)
     
 selected_mode = st.sidebar.radio(
     "機能メニュー", 
@@ -471,9 +478,9 @@ def render_html_zukan(label, value, suffix=""):
 if st.session_state['app_mode'] == "🏠 ホーム (メインメニュー)":
     main_logo_html = ""
     if logo_base64:
-        main_logo_html = f'<img src="data:image/png;base64,{logo_base64}" class="header-logo">'
+        main_logo_html = f'<div style="text-align: center;"><img src="data:image/png;base64,{logo_base64}" class="header-logo"></div>'
 
-    st.markdown(f"<h1 style='text-align: center; color: #58a6ff !important;'>{main_logo_html}RECAT 総合データコンソール</h1>", unsafe_allow_html=True)
+    st.markdown(f"{main_logo_html}<h1 style='text-align: center; color: #58a6ff !important; margin-top:-10px;'>RECAT 総合データコンソール</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; color: #8b949e !important;'>World of Tanks: Modern Armor 専用アナリティクスツール</p>", unsafe_allow_html=True)
     st.markdown("---")
     
@@ -590,7 +597,6 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
             apply_signal_expert_zukan = st.checkbox("通信エキスパート (通信+30%)", key="signal_expert_zukan")
             apply_clutch_braking_zukan = st.checkbox("クラッチの名手 (車体旋回+7.5%)", key="clutch_braking_zukan")
             apply_rapid_aim_zukan = st.checkbox("迅速な照準 (砲塔旋回+10%)", key="rapid_aim_zukan")
-            apply_snap_shot_zukan = st.checkbox("速射 (砲塔旋回精度+10%)", key="snap_shot_zukan")
 
         sim_warnings = []
         if apply_optics_zukan and apply_binocs_zukan:
@@ -638,6 +644,11 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
         render_html_zukan("装填時間", sim_reload, f"秒 <span style='color:#ff7b72'>{'(バフ適用)' if (apply_rammer_zukan or is_crew_buffed) else ''}</span>")
         render_html_zukan("照準時間", sim_aim, f"秒 <span style='color:#ff7b72'>{'(バフ適用)' if (apply_gld_zukan or is_crew_buffed) else ''}</span>")
         render_html_zukan("精度", sim_acc, f"M <span style='color:#ff7b72'>{'(バフ適用)' if is_crew_buffed else ''}</span>")
+        
+        move_disp_mult = 1.0 / crew_mult
+        sim_move_disp = sim_val(get_val(t_data, s_gun, '走行中の精度'), move_disp_mult)
+        render_html_zukan("走行中の精度 (移動時)", sim_move_disp, f"M <span style='color:#ff7b72'>{'(バフ適用)' if is_crew_buffed else ''}</span>")
+        
         render_html_zukan("射撃速度", sim_rof, f"発/分 <span style='color:#ff7b72'>{'(バフ適用)' if is_crew_buffed else ''}</span>")
         st.markdown("</div>", unsafe_allow_html=True)
     with d2:
@@ -660,10 +671,9 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
         render_html_zukan("総弾数", get_val(t_data, s_gun, '総弾数'), "発")
         
         disp_mult = 0.80 if apply_vstab_zukan else 1.0
-        if apply_snap_shot_zukan: disp_mult *= (1.0 - (0.10 * skill_mult))
         disp_mult /= crew_mult
         sim_disp = sim_val(get_val(t_data, s_gun, '砲塔旋回中の射撃精度'), disp_mult)
-        render_html_zukan("砲塔旋回中の射撃精度", sim_disp, f"M <span style='color:#ff7b72'>{'(バフ適用)' if (apply_vstab_zukan or apply_snap_shot_zukan or is_crew_buffed) else ''}</span>")
+        render_html_zukan("砲塔旋回中の射撃精度", sim_disp, f"M <span style='color:#ff7b72'>{'(バフ適用)' if (apply_vstab_zukan or is_crew_buffed) else ''}</span>")
         
         render_html_zukan("攻撃半径 (榴弾)", get_val(t_data, s_gun, '攻撃半径'), "M")
         st.markdown("</div>", unsafe_allow_html=True)
@@ -820,7 +830,6 @@ elif st.session_state['app_mode'] == "⚖️ 車輌比較":
                 apply_camo_skill_A = st.checkbox("迷彩の専門知識", key="camo_skill_A")
                 apply_green_thumb_A = st.checkbox("隠蔽の達人(*茂み)", key="green_thumb_A")
                 apply_sit_aware_A = st.checkbox("状況判断力", key="sit_aware_A")
-                apply_snap_shot_A = st.checkbox("速射", key="snap_shot_A")
                 apply_rapid_aim_A = st.checkbox("迅速な照準", key="rapid_aim_A")
                 apply_clutch_braking_A = st.checkbox("クラッチの名手", key="clutch_braking_A")
                 apply_signal_expert_A = st.checkbox("通信エキスパート", key="signal_expert_A")
@@ -890,7 +899,6 @@ elif st.session_state['app_mode'] == "⚖️ 車輌比較":
                 apply_camo_skill_B = st.checkbox("迷彩の専門知識", key="camo_skill_B")
                 apply_green_thumb_B = st.checkbox("隠蔽の達人(*茂み)", key="green_thumb_B")
                 apply_sit_aware_B = st.checkbox("状況判断力", key="sit_aware_B")
-                apply_snap_shot_B = st.checkbox("速射", key="snap_shot_B")
                 apply_rapid_aim_B = st.checkbox("迅速な照準", key="rapid_aim_B")
                 apply_clutch_braking_B = st.checkbox("クラッチの名手", key="clutch_braking_B")
                 apply_signal_expert_B = st.checkbox("通信エキスパート", key="signal_expert_B")
@@ -938,6 +946,10 @@ elif st.session_state['app_mode'] == "⚖️ 車輌比較":
     acc_mult_B = 1.0 / crew_mult_B
     html += comp_tr("精度", sim_val(get_val(dfA, s_gunA, '精度(m)'), acc_mult_A), sim_val(get_val(dfB, s_gunB, '精度(m)'), acc_mult_B), False, "m")
     
+    move_disp_mult_A = 1.0 / crew_mult_A
+    move_disp_mult_B = 1.0 / crew_mult_B
+    html += comp_tr("走行中の精度 (移動時)", sim_val(get_val(dfA, s_gunA, '走行中の精度'), move_disp_mult_A), sim_val(get_val(dfB, s_gunB, '走行中の精度'), move_disp_mult_B), False, "m")
+    
     rof_mult_A = 1.0 * crew_mult_A
     rof_mult_B = 1.0 * crew_mult_B
     html += comp_tr("射撃速度", sim_val(get_val(dfA, s_gunA, '射撃速度'), rof_mult_A), sim_val(get_val(dfB, s_gunB, '射撃速度'), rof_mult_B), True, "発/分")
@@ -952,10 +964,8 @@ elif st.session_state['app_mode'] == "⚖️ 車輌比較":
     html += comp_tr("総弾数", get_val(dfA, s_gunA, '総弾数'), get_val(dfB, s_gunB, '総弾数'), True, "発")
     
     disp_mult_A = 0.80 if apply_vstab_A else 1.0
-    if apply_snap_shot_A: disp_mult_A *= (1.0 - (0.10 * skill_mult_A))
     disp_mult_A /= crew_mult_A
     disp_mult_B = 0.80 if apply_vstab_B else 1.0
-    if apply_snap_shot_B: disp_mult_B *= (1.0 - (0.10 * skill_mult_B))
     disp_mult_B /= crew_mult_B
     html += comp_tr("砲塔旋回中の射撃精度", sim_val(get_val(dfA, s_gunA, '砲塔旋回中の射撃精度'), disp_mult_A), sim_val(get_val(dfB, s_gunB, '砲塔旋回中の射撃精度'), disp_mult_B), False, "m")
     
