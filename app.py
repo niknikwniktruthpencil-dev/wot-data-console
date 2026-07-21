@@ -188,6 +188,8 @@ div[data-testid="stButton"] button:hover {{ background-color: rgba(88, 166, 255,
     .comp-table th {{ padding: 8px 4px !important; font-size: 0.9em !important; }}
     .comp-table td {{ padding: 8px 4px !important; }}
     .comp-label {{ width: 35% !important; font-size: 0.85em !important; }}
+    .armor-result {{ font-size: 2.8em !important; }}
+    .armor-result-bounce {{ font-size: 2.2em !important; }}
     h1 {{ font-size: 1.4em !important; margin-top: -15px !important; }}
     .header-logo {{ width: 110px; margin-bottom: 10px; }}
     div[data-testid="stExpander"] {{ background-color: rgba(31, 41, 55, 0.8) !important; border-radius: 8px !important; border: 1px solid rgba(255,255,255,0.1) !important; backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); }}
@@ -217,7 +219,7 @@ def load_and_parse_data():
         return [m.replace(' ', '').strip('/') for m in re.findall(pattern, str(text), re.IGNORECASE)]
         
     def extract_basics(text):
-        m = re.search(r'ホーム › 戦車事典 › ([^/]+) / (.*?) / (?:価格|戦闘獲得レート|主要性能)', str(text))
+        m = re.search(r'ホーム › 戦車事典 › ([^/]+) / (.*?) / (?:価格|戦闘獲得レート|主要性能)', text)
         if m: return pd.Series([m.group(1).replace(' ', ''), re.sub(r'\s*/\s*(プレミアム車輌|退役車輌)$', '', m.group(2).strip())])
         return pd.Series(["-", "-"])
 
@@ -697,6 +699,7 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
 
     # === 拡張シミュレーションの設定 ===
     with sim_container:
+        st.markdown("<div class='panel-title' style='margin-top:20px; margin-bottom: 10px;'>📊 拡張シミュレーション (タップで設定を展開)</div>", unsafe_allow_html=True)
         camo_txt = get_camo_bonus_text(tank_type_zukan)
         adv_camo_txt = get_adv_camo_text(tank_type_zukan)
         camo_net_txt = get_camo_net_text(tank_type_zukan)
@@ -789,6 +792,7 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
     dmg_main = get_val(t_data, s_gun, 'ダメージ(主砲)')
     dmg_fmt = f"{get_split_str(dmg_main, 0)}/{get_split_str(dmg_main, 1)}/{get_split_str(dmg_main, 2)}"
     hp_val = get_val(t_data, s_turret, 'HP')
+    ammo_type_val = get_val(t_data, s_gun, '砲弾タイプ')
     
     sim_fwd = sim_val(get_val(t_data, s_engine, '最大前進速度'), speed_mult)
     sim_rev = sim_val(get_val(t_data, s_engine, '最大後進速度'), speed_mult)
@@ -801,7 +805,7 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
     move_v, still_v = get_conceal_values(conceal, tank_type_zukan, apply_camo_zukan, apply_adv_camo_zukan, apply_camo_net_zukan, apply_camo_skill_zukan, apply_green_thumb_zukan, skill_mult)
     camo_fmt = f"{move_v}/{still_v}"
 
-    # === エコノミー・マッチメイキング情報 ===
+    # === エコノミー・マッチメイキング情報 (正確なパース結果から取得) ===
     silver_rate = str(t_data['シルバー獲得レート'].iloc[0]) if not t_data.empty else "-"
     exp_rate = str(t_data['EXP獲得レート'].iloc[0]) if not t_data.empty else "-"
     free_exp_rate = str(t_data['フリーEXPレート'].iloc[0]) if not t_data.empty else "-"
@@ -824,6 +828,10 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
             <div class="major-stat-box">
                 <div class="major-stat-title">ダメージ</div>
                 <div class="major-stat-value">{dmg_fmt} <span class="major-stat-unit">HP</span></div>
+            </div>
+            <div class="major-stat-box">
+                <div class="major-stat-title">砲弾タイプ</div>
+                <div class="major-stat-value" style="font-size: 1.3em;">{ammo_type_val}</div>
             </div>
             """, unsafe_allow_html=True)
             
