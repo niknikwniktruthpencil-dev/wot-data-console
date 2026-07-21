@@ -184,6 +184,7 @@ div[data-testid="stButton"] button:hover {{ background-color: rgba(88, 166, 255,
     .off-row {{ padding: 12px 6px; }}
     .off-label {{ font-size: 0.9em; }}
     .off-val {{ font-size: 1.0em; }}
+    .off-suf {{ font-size: 0.8em; }}
     .comp-table {{ font-size: 0.75em !important; border-radius: 4px !important; }}
     .comp-table th {{ padding: 8px 4px !important; font-size: 0.9em !important; }}
     .comp-table td {{ padding: 8px 4px !important; }}
@@ -219,7 +220,7 @@ def load_and_parse_data():
         return [m.replace(' ', '').strip('/') for m in re.findall(pattern, str(text), re.IGNORECASE)]
         
     def extract_basics(text):
-        m = re.search(r'ホーム › 戦車事典 › ([^/]+) / (.*?) / (?:価格|戦闘獲得レート|主要性能)', text)
+        m = re.search(r'ホーム › 戦車事典 › ([^/]+) / (.*?) / (?:価格|戦闘獲得レート|主要性能)', str(text))
         if m: return pd.Series([m.group(1).replace(' ', ''), re.sub(r'\s*/\s*(プレミアム車輌|退役車輌)$', '', m.group(2).strip())])
         return pd.Series(["-", "-"])
 
@@ -569,7 +570,7 @@ if selected_mode != st.session_state['app_mode']:
 
 st.sidebar.markdown("---")
 st.sidebar.info("💡 **Tips:** スマホ版は自動で公式アプリ風の最適化レイアウトに切り替わります。")
-
+st.sidebar.caption("⚠️ **注記:** 公式サイトの車両情報を元に作成しておりますので、ゲーム内のデータ(小数点以下のデータ内容等)とほんの少しズレる場合がございます。")
 
 # ==========================================
 # 0. ホーム（メインメニュー）
@@ -990,7 +991,7 @@ elif st.session_state['app_mode'] == "⚖️ 車輌比較":
             
             c_a1, c_a2, c_a3, c_a4 = st.columns(4)
             with c_a1:
-                st.markdown("<span style='color:#58a6ff; font-size:0.9em; font-weight:bold;'>⚙️ パーツ (火力/機動)</span>", unsafe_allow_html=True)
+                st.markdown("<span style='color:#58a6ff; font-weight:bold; margin-bottom:8px;'>⚙️ パーツ (火力/機動)</span>", unsafe_allow_html=True)
                 apply_rammer_A = st.checkbox("装填棒(-7.5%)", key="rammer_A")
                 apply_vstab_A = st.checkbox("安定装置(+20%)", key="vstab_A")
                 apply_gld_A = st.checkbox("射撃装置(-10%)", key="gld_A")
@@ -998,20 +999,20 @@ elif st.session_state['app_mode'] == "⚖️ 車輌比較":
                 apply_grouser_A = st.checkbox("グローサー(+7.5%)", key="grouser_A")
                 apply_turbo_A = st.checkbox("ターボ(+5%)", key="turbo_A")
             with c_a2:
-                st.markdown("<span style='color:#58a6ff; font-size:0.9em; font-weight:bold;'>⚙️ パーツ (視認/隠蔽)</span>", unsafe_allow_html=True)
+                st.markdown("<span style='color:#58a6ff; font-weight:bold; margin-bottom:8px;'>⚙️ パーツ (視認/隠蔽)</span>", unsafe_allow_html=True)
                 apply_optics_A = st.checkbox("薄膜レンズ", key="optics_A")
                 apply_binocs_A = st.checkbox("双眼鏡(*静止)", key="binocs_A")
                 apply_adv_camo_A = st.checkbox("改良型迷彩", key="adv_A")
                 apply_camo_net_A = st.checkbox("迷彩ネット(*静止)", key="net_A")
             with c_a3:
-                st.markdown("<span style='color:#58a6ff; font-size:0.9em; font-weight:bold;'>🎨 外観/消耗品</span>", unsafe_allow_html=True)
+                st.markdown("<span style='color:#58a6ff; font-weight:bold; margin-bottom:8px;'>🎨 外観/消耗品</span>", unsafe_allow_html=True)
                 apply_camo_A = st.checkbox("迷彩塗装", key="camo_A")
                 apply_food_p_A = st.checkbox("食料(常時)", key="food_p_A")
                 apply_food_a_A = st.checkbox("食料(使用)", key="food_a_A")
                 apply_fuel_p_A = st.checkbox("燃料(常時)", key="fuel_p_A")
                 apply_fuel_a_A = st.checkbox("燃料(使用)", key="fuel_a_A")
             with c_a4:
-                st.markdown("<span style='color:#58a6ff; font-size:0.9em; font-weight:bold;'>👤 スキル</span>", unsafe_allow_html=True)
+                st.markdown("<span style='color:#58a6ff; font-weight:bold; margin-bottom:8px;'>👤 スキル</span>", unsafe_allow_html=True)
                 apply_born_leader_A = st.checkbox("天性のリーダー", key="born_leader_A")
                 apply_camo_skill_A = st.checkbox("迷彩の専門知識", key="camo_skill_A")
                 apply_green_thumb_A = st.checkbox("隠蔽の達人(*茂み)", key="green_thumb_A")
