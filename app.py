@@ -3,6 +3,7 @@ import pandas as pd
 import re
 import math
 import os
+import base64
 
 # 画像クリック機能と描画機能のインポート
 try:
@@ -12,7 +13,7 @@ try:
 except ImportError:
     HAS_IMG_COORD = False
 
-# ページ設定 (スマホ対応のため initial_sidebar_state を auto に変更)
+# ページ設定
 st.set_page_config(page_title="RECAT 総合データコンソール", layout="wide", initial_sidebar_state="auto")
 
 # === セッションステートの初期化 ===
@@ -47,62 +48,72 @@ for potential_img in ["Screenshot 2026-07-17 23-00-25.jpg", "Screenshot 2026-07-
         SAMPLE_IMG_FILE = potential_img
         break
 
-# === CSS (完全ダークモード・スマホレスポンシブ対応・ロゴ大型化) ===
+# === CSS (公式サイト風リッチモバイルレイアウト) ===
 css_string = """
 <style>
-.stApp { background-color: #0d1117 !important; }
-[data-testid="stSidebar"] { background-color: #161b22 !important; }
+.stApp { background-color: #0b0f19 !important; }
+[data-testid="stSidebar"] { background-color: #121824 !important; border-right: 1px solid #1f2937; }
 .stApp, .stApp p, .stApp label, .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6, .stApp span { color: #e6edf3 !important; }
+
+/* ドロップダウン等のUIパーツ */
 ul[role="listbox"], ul[role="listbox"] * { background-color: #1c2128 !important; color: #ffffff !important; }
 li[role="option"] { background-color: #1c2128 !important; color: #ffffff !important; }
-li[role="option"]:hover, li[role="option"]:focus, li[aria-selected="true"] { background-color: #30363d !important; color: #58a6ff !important; }
-div[data-baseweb="popover"] > div { background-color: #1c2128 !important; }
-div[data-baseweb="select"] > div { background-color: #21262d !important; color: #ffffff !important; border-color: #30363d !important; }
-input { background-color: #21262d !important; color: #ffffff !important; border: 1px solid #30363d !important; }
-div[data-testid="stButton"] button { background-color: #21262d !important; color: #58a6ff !important; border: 1px solid #30363d !important; border-radius: 8px !important; }
-div[data-testid="stButton"] button:hover { background-color: #30363d !important; color: #ffffff !important; border: 1px solid #58a6ff !important; }
-div[data-testid="stButton"] button p { color: inherit !important; }
+li[role="option"]:hover, li[role="option"]:focus, li[aria-selected="true"] { background-color: #2d3748 !important; color: #58a6ff !important; border-left: 3px solid #58a6ff; }
+div[data-baseweb="select"] > div { background-color: #1f2937 !important; color: #ffffff !important; border: 1px solid #374151 !important; border-radius: 8px !important; }
+input { background-color: #1f2937 !important; color: #ffffff !important; border: 1px solid #374151 !important; border-radius: 8px !important; }
 
 /* PC向け基本レイアウト */
 .block-container { max-width: 1600px; padding-top: 1.5rem; }
-.panel-box { padding: 20px; background-color: #161b22; border-radius: 12px; margin-bottom: 20px; border: 1px solid #30363d; box-shadow: 0 4px 6px rgba(0,0,0,0.5); }
-.panel-title { font-size: 1.2em; color: #58a6ff !important; margin-top: 10px; margin-bottom: 15px; border-bottom: 2px solid #30363d; padding-bottom: 5px; }
-.comp-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.95em; background-color: #161b22; border-radius: 8px; overflow: hidden; }
-.comp-table th { background-color: #21262d; padding: 12px; border-bottom: 2px solid #30363d; text-align: center; font-size: 1.1em; color: #ffffff !important; }
-.comp-table td { padding: 8px 12px; border-bottom: 1px solid #30363d; text-align: center; color: #e6edf3 !important;}
-.comp-label { text-align: left !important; color: #8b949e !important; width: 26%; font-weight: 500; background-color: #0d1117; }
-.win-stat { color: #58a6ff !important; font-weight: bold; background-color: rgba(88, 166, 255, 0.1); }
-.stat-label { font-size: 0.8em; color: #8b949e !important; margin-bottom: -4px; margin-top: 8px; text-align: center; }
-.stat-value { font-size: 1.1em; font-weight: bold; margin-bottom: 4px; text-align: center; color: #e6edf3 !important; }
-.armor-result { font-size: 3.5em !important; font-weight: bold !important; color: #ff7b72 !important; text-align: center !important; margin-top: 10px !important; margin-bottom: 5px !important; line-height: 1.1 !important; display: block !important;}
-.armor-result-bounce { font-size: 2.8em !important; font-weight: bold !important; color: #8b949e !important; text-align: center !important; margin-top: 10px !important; margin-bottom: 5px !important; display: block !important;}
-.armor-subtext { text-align: center !important; color: #8b949e !important; font-size: 0.9em !important; margin-bottom: 15px !important; display: block !important;}
+.panel-box { padding: 20px; background-color: #161b22; border-radius: 16px; margin-bottom: 24px; border: 1px solid #2d3748; box-shadow: 0 8px 16px rgba(0,0,0,0.6); }
+.panel-title { font-size: 1.2em; color: #58a6ff !important; margin-top: 5px; margin-bottom: 15px; border-bottom: 2px solid #2d3748; padding-bottom: 8px; letter-spacing: 0.5px; }
 
-/* ロゴの大型化と中央揃え化 */
+/* 比較テーブル */
+.comp-table { width: 100%; border-collapse: separate; border-spacing: 0; margin-top: 10px; font-size: 0.95em; background-color: #161b22; border-radius: 12px; overflow: hidden; border: 1px solid #2d3748; }
+.comp-table th { background-color: #1f2937; padding: 14px; border-bottom: 2px solid #374151; text-align: center; font-size: 1.1em; color: #ffffff !important; }
+.comp-table td { padding: 10px 12px; border-bottom: 1px solid #2d3748; text-align: center; color: #e6edf3 !important;}
+.comp-label { text-align: left !important; color: #9ca3af !important; width: 28%; font-weight: 500; background-color: #0b0f19; }
+.win-stat { color: #60a5fa !important; font-weight: bold; background-color: rgba(96, 165, 250, 0.1); }
+
+/* 各種ステータス表記 */
+.stat-label { font-size: 0.8em; color: #9ca3af !important; margin-bottom: -2px; margin-top: 10px; text-align: center; letter-spacing: 0.5px; }
+.stat-value { font-size: 1.15em; font-weight: 600; margin-bottom: 6px; text-align: center; color: #f3f4f6 !important; }
+
+/* 装甲シミュレーター結果 */
+.armor-result { font-size: 3.5em !important; font-weight: 800 !important; color: #f87171 !important; text-align: center !important; margin-top: 10px !important; margin-bottom: 5px !important; line-height: 1.1 !important; display: block !important; text-shadow: 0 0 10px rgba(248,113,114,0.3); }
+.armor-result-bounce { font-size: 2.8em !important; font-weight: 800 !important; color: #9ca3af !important; text-align: center !important; margin-top: 10px !important; margin-bottom: 5px !important; display: block !important;}
+.armor-subtext { text-align: center !important; color: #9ca3af !important; font-size: 0.9em !important; margin-bottom: 15px !important; display: block !important;}
+
+/* 車輌画像表示用クラス */
+.tank-image-container { text-align: center; margin-bottom: 25px; padding: 15px; background: linear-gradient(180deg, #1f2937 0%, #161b22 100%); border-radius: 16px; border: 1px solid #374151; box-shadow: 0 10px 25px rgba(0,0,0,0.8); }
+.tank-image { max-width: 100%; max-height: 350px; object-fit: contain; filter: drop-shadow(0px 10px 15px rgba(0,0,0,0.7)); }
+
 .header-logo { width: 140px; height: auto; display: block; margin: 0 auto 15px auto; }
 .sidebar-logo { width: 110px; height: auto; display: block; margin: 0 auto 10px auto; }
 
 /* === スマホ向け専用レイアウト（画面幅768px以下） === */
 @media (max-width: 768px) {
-    .block-container { padding-left: 0.5rem !important; padding-right: 0.5rem !important; padding-top: 1rem !important; }
-    .panel-box { padding: 12px !important; margin-bottom: 15px !important; }
-    .panel-title { font-size: 1.1em !important; margin-bottom: 10px !important; }
+    .block-container { padding-left: 0.4rem !important; padding-right: 0.4rem !important; padding-top: 1rem !important; }
+    .panel-box { padding: 12px !important; border-radius: 12px !important; margin-bottom: 12px !important; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+    .panel-title { font-size: 1.05em !important; margin-bottom: 10px !important; padding-bottom: 5px !important; }
     
-    /* 比較テーブルのスマホ最適化 */
-    .comp-table { font-size: 0.75em !important; }
-    .comp-table th { padding: 6px 4px !important; font-size: 0.9em !important; }
-    .comp-table td { padding: 6px 4px !important; }
+    .tank-image-container { padding: 10px; margin-bottom: 15px; border-radius: 12px; }
+    .tank-image { max-height: 200px; }
+    
+    .comp-table { font-size: 0.75em !important; border-radius: 8px !important; }
+    .comp-table th { padding: 8px 4px !important; font-size: 0.9em !important; }
+    .comp-table td { padding: 8px 4px !important; }
     .comp-label { width: 35% !important; font-size: 0.85em !important; }
     
-    /* 文字サイズと余白の縮小 */
     .stat-label { font-size: 0.75em !important; }
-    .stat-value { font-size: 0.95em !important; }
+    .stat-value { font-size: 1.0em !important; }
     .armor-result { font-size: 2.5em !important; }
     .armor-result-bounce { font-size: 2.0em !important; }
     
-    /* ヘッダーの調整 */
-    h1 { font-size: 1.5em !important; margin-top: -10px !important; }
-    .header-logo { width: 100px; margin-bottom: 10px; }
+    h1 { font-size: 1.4em !important; margin-top: -15px !important; }
+    .header-logo { width: 110px; margin-bottom: 10px; }
+    
+    /* エキスパンダー(折りたたみ)のデザイン調整 */
+    div[data-testid="stExpander"] { background-color: #1f2937 !important; border-radius: 12px !important; border: 1px solid #374151 !important; }
 }
 </style>
 """
@@ -177,11 +188,7 @@ def load_and_parse_data():
     df['弾薬の最大射程'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'弾薬の最大射程 / ([\d/ \.]+)M', x))
     df['砲弾タイプ'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'砲弾タイプ / ([A-Z/ \.]+)', x))
     df['総弾数'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'総弾数 / (\d+)発', x))
-    
-    # 走行中の精度 (移動時精度)
-    df['走行中の精度'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'走行中の精度.*?([\d\.]+)[ \n]*M', x))
     df['砲塔旋回中の射撃精度'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'砲塔旋回中の射撃精度 / ([\d\.]+)M', x))
-    
     df['俯角'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'俯角 / ([\d\.]+)度', x))
     df['仰角'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'仰角 / ([\d\.]+)度', x))
     df['水平可動域'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'水平可動域 / ([\-\d/ \.]+)度', x))
@@ -227,8 +234,19 @@ if df.empty:
     st.stop()
 
 # ==========================================
-# 拡張シミュレーション 計算ロジック
+# 拡張シミュレーション & ユーティリティ
 # ==========================================
+def get_tank_image_base64(tank_name):
+    """ローカルのtanksフォルダから画像を読み込み、なければプレースホルダーを返す"""
+    safe_name = re.sub(r'[\\/*?:"<>|]', "", tank_name)
+    img_path = os.path.join(base_dir, "tanks", f"{safe_name}.png")
+    if os.path.exists(img_path):
+        with open(img_path, 'rb') as f:
+            data = f.read()
+        return f"data:image/png;base64,{base64.b64encode(data).decode()}"
+    # 画像がない場合のスタイリッシュなプレースホルダー
+    return f"https://via.placeholder.com/800x400/1f2937/58a6ff?text={tank_name.replace(' ', '+')}"
+
 def sim_val(base_str, mult, is_int=False):
     if mult == 1.0: return base_str
     if pd.isna(base_str) or str(base_str).strip() == "-": return "-"
@@ -365,8 +383,6 @@ def get_crew_exp_str(base_str, apply_food_passive):
 # ==========================================
 # サイドバーとメインメニューの連携設定
 # ==========================================
-import base64
-
 def get_base64_of_bin_file(bin_file):
     if bin_file:
         full_path = os.path.join(base_dir, bin_file)
@@ -543,7 +559,11 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
     st.markdown("</div>", unsafe_allow_html=True)
     
     t_data = df[df['正確な車輌名'] == selected_tank]
-    st.markdown("---")
+    
+    # 車輌画像の表示
+    img_b64 = get_tank_image_base64(selected_tank)
+    st.markdown(f"<div class='tank-image-container'><img src='{img_b64}' class='tank-image'></div>", unsafe_allow_html=True)
+
     st.markdown(f"<div class='panel-title'>⚙️ モジュール構成 - {selected_tank}</div>", unsafe_allow_html=True)
     mc1, mc2, mc3, mc4, mc5 = st.columns(5)
     guns = t_data[t_data['モジュール種類'] == '主砲']['モジュール状態'].unique()
@@ -644,11 +664,6 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
         render_html_zukan("装填時間", sim_reload, f"秒 <span style='color:#ff7b72'>{'(バフ適用)' if (apply_rammer_zukan or is_crew_buffed) else ''}</span>")
         render_html_zukan("照準時間", sim_aim, f"秒 <span style='color:#ff7b72'>{'(バフ適用)' if (apply_gld_zukan or is_crew_buffed) else ''}</span>")
         render_html_zukan("精度", sim_acc, f"M <span style='color:#ff7b72'>{'(バフ適用)' if is_crew_buffed else ''}</span>")
-        
-        move_disp_mult = 1.0 / crew_mult
-        sim_move_disp = sim_val(get_val(t_data, s_gun, '走行中の精度'), move_disp_mult)
-        render_html_zukan("走行中の精度 (移動時)", sim_move_disp, f"M <span style='color:#ff7b72'>{'(バフ適用)' if is_crew_buffed else ''}</span>")
-        
         render_html_zukan("射撃速度", sim_rof, f"発/分 <span style='color:#ff7b72'>{'(バフ適用)' if is_crew_buffed else ''}</span>")
         st.markdown("</div>", unsafe_allow_html=True)
     with d2:
@@ -785,6 +800,10 @@ elif st.session_state['app_mode'] == "⚖️ 車輌比較":
         tankA = st.selectbox("🎯 比較する車輌 A を選択", listA if listA else ["-"])
         
         dfA = df[df['正確な車輌名'] == tankA]
+        
+        img_b64_A = get_tank_image_base64(tankA)
+        st.markdown(f"<div class='tank-image-container'><img src='{img_b64_A}' class='tank-image'></div>", unsafe_allow_html=True)
+        
         ca1, ca2, ca3 = st.columns(3)
         gA = dfA[dfA['モジュール種類'] == '主砲']['モジュール状態'].unique()
         tA = dfA[dfA['モジュール種類'] == '砲塔']['モジュール状態'].unique()
@@ -854,6 +873,10 @@ elif st.session_state['app_mode'] == "⚖️ 車輌比較":
         tankB = st.selectbox("🎯 比較する車輌 B を選択", listB if listB else ["-"])
         
         dfB = df[df['正確な車輌名'] == tankB]
+        
+        img_b64_B = get_tank_image_base64(tankB)
+        st.markdown(f"<div class='tank-image-container'><img src='{img_b64_B}' class='tank-image'></div>", unsafe_allow_html=True)
+        
         cb1, cb2, cb3 = st.columns(3)
         gB = dfB[dfB['モジュール種類'] == '主砲']['モジュール状態'].unique()
         tB = dfB[dfB['モジュール種類'] == '砲塔']['モジュール状態'].unique()
@@ -946,10 +969,6 @@ elif st.session_state['app_mode'] == "⚖️ 車輌比較":
     acc_mult_B = 1.0 / crew_mult_B
     html += comp_tr("精度", sim_val(get_val(dfA, s_gunA, '精度(m)'), acc_mult_A), sim_val(get_val(dfB, s_gunB, '精度(m)'), acc_mult_B), False, "m")
     
-    move_disp_mult_A = 1.0 / crew_mult_A
-    move_disp_mult_B = 1.0 / crew_mult_B
-    html += comp_tr("走行中の精度 (移動時)", sim_val(get_val(dfA, s_gunA, '走行中の精度'), move_disp_mult_A), sim_val(get_val(dfB, s_gunB, '走行中の精度'), move_disp_mult_B), False, "m")
-    
     rof_mult_A = 1.0 * crew_mult_A
     rof_mult_B = 1.0 * crew_mult_B
     html += comp_tr("射撃速度", sim_val(get_val(dfA, s_gunA, '射撃速度'), rof_mult_A), sim_val(get_val(dfB, s_gunB, '射撃速度'), rof_mult_B), True, "発/分")
@@ -961,7 +980,7 @@ elif st.session_state['app_mode'] == "⚖️ 車輌比較":
     html += comp_tr("弾速 (最大/通常弾)", get_split_str(get_val(dfA, s_gunA, '弾薬の最大速度'), 0), get_split_str(get_val(dfB, s_gunB, '弾薬の最大速度'), 0), True, "m/s")
     html += comp_tr("弾速 (金弾/APCR等)", get_split_str(get_val(dfA, s_gunA, '弾薬の最大速度'), 1), get_split_str(get_val(dfB, s_gunB, '弾薬の最大速度'), 1), True, "m/s")
     html += comp_tr("弾薬の最大射程", get_split_str(get_val(dfA, s_gunA, '弾薬の最大射程'), 0), get_split_str(get_val(dfB, s_gunB, '弾薬の最大射程'), 0), True, "m")
-    html += comp_tr("総弾数", get_val(dfA, s_gunA, '総弾数'), get_val(dfB, s_gunB, '総弾数'), True, "発")
+    html += comp_tr("総弾数", get_split_str(get_val(dfA, s_gunA, '総弾数'), 0), get_split_str(get_val(dfB, s_gunB, '総弾数'), 0), True, "発")
     
     disp_mult_A = 0.80 if apply_vstab_A else 1.0
     disp_mult_A /= crew_mult_A
