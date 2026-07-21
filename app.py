@@ -12,8 +12,8 @@ try:
 except ImportError:
     HAS_IMG_COORD = False
 
-# ページ設定 (必ず一番最初に記述)
-st.set_page_config(page_title="RECAT 総合データコンソール", layout="wide", initial_sidebar_state="expanded")
+# ページ設定 (スマホ対応のため initial_sidebar_state を auto に変更)
+st.set_page_config(page_title="RECAT 総合データコンソール", layout="wide", initial_sidebar_state="auto")
 
 # === セッションステートの初期化 ===
 PAGES = [
@@ -47,7 +47,7 @@ for potential_img in ["Screenshot 2026-07-17 23-00-25.jpg", "Screenshot 2026-07-
         SAMPLE_IMG_FILE = potential_img
         break
 
-# === CSS (完全ダークモード・レイアウト最適化) ===
+# === CSS (完全ダークモード・スマホレスポンシブ対応) ===
 css_string = """
 <style>
 .stApp { background-color: #0d1117 !important; }
@@ -62,6 +62,8 @@ input { background-color: #21262d !important; color: #ffffff !important; border:
 div[data-testid="stButton"] button { background-color: #21262d !important; color: #58a6ff !important; border: 1px solid #30363d !important; border-radius: 8px !important; }
 div[data-testid="stButton"] button:hover { background-color: #30363d !important; color: #ffffff !important; border: 1px solid #58a6ff !important; }
 div[data-testid="stButton"] button p { color: inherit !important; }
+
+/* PC向け基本レイアウト */
 .block-container { max-width: 1600px; padding-top: 1.5rem; }
 .panel-box { padding: 20px; background-color: #161b22; border-radius: 12px; margin-bottom: 20px; border: 1px solid #30363d; box-shadow: 0 4px 6px rgba(0,0,0,0.5); }
 .panel-title { font-size: 1.2em; color: #58a6ff !important; margin-top: 10px; margin-bottom: 15px; border-bottom: 2px solid #30363d; padding-bottom: 5px; }
@@ -77,6 +79,28 @@ div[data-testid="stButton"] button p { color: inherit !important; }
 .armor-subtext { text-align: center !important; color: #8b949e !important; font-size: 0.9em !important; margin-bottom: 15px !important; display: block !important;}
 .header-logo { width: 50px; height: auto; vertical-align: middle; margin-right: 10px; }
 .sidebar-logo { width: 40px; height: auto; vertical-align: middle; margin-right: 10px; }
+
+/* === スマホ向け専用レイアウト（画面幅768px以下） === */
+@media (max-width: 768px) {
+    .block-container { padding-left: 0.5rem !important; padding-right: 0.5rem !important; padding-top: 1rem !important; }
+    .panel-box { padding: 12px !important; margin-bottom: 15px !important; }
+    .panel-title { font-size: 1.1em !important; margin-bottom: 10px !important; }
+    
+    /* 比較テーブルのスマホ最適化 */
+    .comp-table { font-size: 0.75em !important; }
+    .comp-table th { padding: 6px 4px !important; font-size: 0.9em !important; }
+    .comp-table td { padding: 6px 4px !important; }
+    .comp-label { width: 35% !important; font-size: 0.85em !important; }
+    
+    /* 文字サイズと余白の縮小 */
+    .stat-label { font-size: 0.75em !important; }
+    .stat-value { font-size: 0.95em !important; }
+    .armor-result { font-size: 2.5em !important; }
+    .armor-result-bounce { font-size: 2.0em !important; }
+    
+    /* ヘッダーの調整 */
+    h1 { font-size: 1.5em !important; }
+}
 </style>
 """
 safe_css = css_string.replace('\n', ' ')
@@ -131,7 +155,7 @@ def load_and_parse_data():
     df['DPM(副砲)'] = df['DPM_list'].apply(lambda x: x[1] if len(x) > 1 else "-")
     df['貫通力_list'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_all(r'100 Mでの貫通力 / ([\d/ \.]+)MM', x))
     df['貫通力100m(主砲)'] = df['貫通力_list'].apply(lambda x: x[0] if len(x) > 0 else "-")
-    df['貫通力100m(副砲)'] = df['貫通力100m(副砲)'] = df['貫通力_list'].apply(lambda x: x[1] if len(x) > 1 else "-")
+    df['貫通力100m(副砲)'] = df['貫通力_list'].apply(lambda x: x[1] if len(x) > 1 else "-")
     df['貫通力500_list'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_all(r'500 Mでの貫通力 / ([\d/ \.]+)MM', x))
     df['貫通力500m(主砲)'] = df['貫通力500_list'].apply(lambda x: x[0] if len(x) > 0 else "-")
     df['貫通力500m(副砲)'] = df['貫通力500_list'].apply(lambda x: x[1] if len(x) > 1 else "-")
@@ -527,62 +551,55 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
     s_radio = mc5.selectbox("無線", radios) if len(radios) > 0 else None
     
     st.markdown("---")
-    st.markdown("<div class='panel-title' style='font-size: 1.0em; margin-bottom: 10px;'>📊 拡張シミュレーション (チェックで性能が動的に変化します)</div>", unsafe_allow_html=True)
+    st.markdown("<div class='panel-title' style='font-size: 1.0em; margin-bottom: 10px;'>📊 拡張シミュレーション (タップで各種設定を開閉)</div>", unsafe_allow_html=True)
     
     tank_type_zukan = t_data['タイプ'].iloc[0] if not t_data.empty else "-"
     camo_txt = get_camo_bonus_text(tank_type_zukan)
     adv_camo_txt = get_adv_camo_text(tank_type_zukan)
     camo_net_txt = get_camo_net_text(tank_type_zukan)
     
-    c_sim1, c_sim2, c_sim3, c_sim4 = st.columns(4)
-    with c_sim1:
-        st.markdown("<div style='color:#58a6ff; font-weight:bold; margin-bottom:8px;'>⚙️ パーツ (火力・共通)</div>", unsafe_allow_html=True)
-        apply_rammer_zukan = st.checkbox("装填棒 (-7.5%)", key="rammer_zukan")
-        apply_vstab_zukan = st.checkbox("砲安定装置 (旋回精度+20%)", key="vstab_zukan")
-        apply_gld_zukan = st.checkbox("射撃装置 (照準時間-10%)", key="gld_zukan")
-        apply_vents_zukan = st.checkbox("改良型換気装置 (搭乗員+5%)", key="vents_zukan")
-    with c_sim2:
-        st.markdown("<div style='color:#58a6ff; font-weight:bold; margin-bottom:8px;'>⚙️ パーツ (機動)</div>", unsafe_allow_html=True)
-        apply_grouser_zukan = st.checkbox("追加グローサー (旋回/抵抗+7.5%)", key="grouser_zukan")
-        apply_turbo_zukan = st.checkbox("ターボチャージャー (速度/出力+5%)", key="turbo_zukan")
-    with c_sim3:
-        st.markdown("<div style='color:#58a6ff; font-weight:bold; margin-bottom:8px;'>⚙️ パーツ (視認・隠蔽)</div>", unsafe_allow_html=True)
-        apply_optics_zukan = st.checkbox("薄膜レンズ (全車: 10%)", key="optics_zukan")
-        apply_binocs_zukan = st.checkbox("双眼鏡 (全車: 20% *静止)", key="binocs_zukan")
-        apply_adv_camo_zukan = st.checkbox(f"改良型迷彩 ({tank_type_zukan}: {adv_camo_txt})", key="adv_zukan")
-        apply_camo_net_zukan = st.checkbox(f"迷彩ネット ({tank_type_zukan}: {camo_net_txt} *静止)", key="net_zukan")
-    with c_sim4:
-        st.markdown("<div style='color:#58a6ff; font-weight:bold; margin-bottom:8px;'>🎨 外観 / 🥩 消耗品</div>", unsafe_allow_html=True)
-        apply_camo_zukan = st.checkbox(f"迷彩塗装 ({tank_type_zukan}: {camo_txt})", key="camo_zukan")
-        apply_food_p_zukan = st.checkbox("改良型食料 (常時: 搭乗員+5%)", key="food_p_zukan")
-        apply_food_a_zukan = st.checkbox("└ 使用時効果 (さらに+15%)", key="food_a_zukan")
-        apply_fuel_p_zukan = st.checkbox("改良型燃料 (常時: 速度+5%/旋回+10%)", key="fuel_p_zukan")
-        apply_fuel_a_zukan = st.checkbox("└ 使用時効果 (出力+10%)", key="fuel_a_zukan")
+    with st.expander("🛠️ パーツ・消耗品・スキル設定", expanded=True):
+        c_sim1, c_sim2, c_sim3, c_sim4 = st.columns(4)
+        with c_sim1:
+            st.markdown("<div style='color:#58a6ff; font-weight:bold; margin-bottom:8px;'>⚙️ パーツ (火力・共通)</div>", unsafe_allow_html=True)
+            apply_rammer_zukan = st.checkbox("装填棒 (-7.5%)", key="rammer_zukan")
+            apply_vstab_zukan = st.checkbox("砲安定装置 (旋回精度+20%)", key="vstab_zukan")
+            apply_gld_zukan = st.checkbox("射撃装置 (照準時間-10%)", key="gld_zukan")
+            apply_vents_zukan = st.checkbox("改良型換気装置 (搭乗員+5%)", key="vents_zukan")
+        with c_sim2:
+            st.markdown("<div style='color:#58a6ff; font-weight:bold; margin-bottom:8px;'>⚙️ パーツ (機動/視認/隠蔽)</div>", unsafe_allow_html=True)
+            apply_grouser_zukan = st.checkbox("追加グローサー (旋回/抵抗+7.5%)", key="grouser_zukan")
+            apply_turbo_zukan = st.checkbox("ターボチャージャー (速度/出力+5%)", key="turbo_zukan")
+            apply_optics_zukan = st.checkbox("薄膜レンズ (全車: 10%)", key="optics_zukan")
+            apply_binocs_zukan = st.checkbox("双眼鏡 (全車: 20% *静止)", key="binocs_zukan")
+            apply_adv_camo_zukan = st.checkbox(f"改良型迷彩 ({tank_type_zukan}: {adv_camo_txt})", key="adv_zukan")
+            apply_camo_net_zukan = st.checkbox(f"迷彩ネット ({tank_type_zukan}: {camo_net_txt} *静止)", key="net_zukan")
+        with c_sim3:
+            st.markdown("<div style='color:#58a6ff; font-weight:bold; margin-bottom:8px;'>🎨 外観 / 🥩 消耗品</div>", unsafe_allow_html=True)
+            apply_camo_zukan = st.checkbox(f"迷彩塗装 ({tank_type_zukan}: {camo_txt})", key="camo_zukan")
+            apply_food_p_zukan = st.checkbox("改良型食料 (常時: 搭乗員+5%)", key="food_p_zukan")
+            apply_food_a_zukan = st.checkbox("└ 使用時効果 (さらに+15%)", key="food_a_zukan")
+            apply_fuel_p_zukan = st.checkbox("改良型燃料 (常時: 速度+5%/旋回+10%)", key="fuel_p_zukan")
+            apply_fuel_a_zukan = st.checkbox("└ 使用時効果 (出力+10%)", key="fuel_a_zukan")
+        with c_sim4:
+            st.markdown("<div style='color:#58a6ff; font-weight:bold; margin-bottom:8px;'>👤 車長スキル</div>", unsafe_allow_html=True)
+            apply_born_leader_zukan = st.checkbox("天性のリーダー (搭乗員/スキル+5%)", key="born_leader_zukan")
+            apply_camo_skill_zukan = st.checkbox("迷彩の専門知識 (隠蔽+7.5%)", key="camo_skill_zukan")
+            apply_green_thumb_zukan = st.checkbox("隠蔽の達人 (+10% ※茂み限定)", key="green_thumb_zukan")
+            apply_sit_aware_zukan = st.checkbox("状況判断力 (視認+6%)", key="sit_aware_zukan")
+            apply_signal_expert_zukan = st.checkbox("通信エキスパート (通信+30%)", key="signal_expert_zukan")
+            apply_clutch_braking_zukan = st.checkbox("クラッチの名手 (車体旋回+7.5%)", key="clutch_braking_zukan")
+            apply_rapid_aim_zukan = st.checkbox("迅速な照準 (砲塔旋回+10%)", key="rapid_aim_zukan")
+            apply_snap_shot_zukan = st.checkbox("速射 (砲塔旋回精度+10%)", key="snap_shot_zukan")
 
-    st.markdown("<div style='color:#58a6ff; font-weight:bold; margin-top:10px; margin-bottom:8px;'>👤 車長スキル</div>", unsafe_allow_html=True)
-    s_sim1, s_sim2, s_sim3, s_sim4 = st.columns(4)
-    with s_sim1:
-        apply_born_leader_zukan = st.checkbox("天性のリーダー (搭乗員/スキル+5%)", key="born_leader_zukan")
-        apply_camo_skill_zukan = st.checkbox("迷彩の専門知識 (隠蔽+7.5%)", key="camo_skill_zukan")
-    with s_sim2:
-        apply_sit_aware_zukan = st.checkbox("状況判断力 (視認+6%)", key="sit_aware_zukan")
-        apply_signal_expert_zukan = st.checkbox("通信エキスパート (通信+30%)", key="signal_expert_zukan")
-    with s_sim3:
-        apply_clutch_braking_zukan = st.checkbox("クラッチの名手 (車体旋回+7.5%)", key="clutch_braking_zukan")
-        apply_rapid_aim_zukan = st.checkbox("迅速な照準 (砲塔旋回+10%)", key="rapid_aim_zukan")
-    with s_sim4:
-        apply_snap_shot_zukan = st.checkbox("速射 (砲塔旋回精度+10%)", key="snap_shot_zukan")
-        apply_green_thumb_zukan = st.checkbox("隠蔽の達人 (+10% ※茂み限定)", key="green_thumb_zukan")
-        st.markdown("<div style='color:#8b949e; font-size:0.75em;'>※隠蔽の達人は茂みに潜んでいる時のみ適用されます</div>", unsafe_allow_html=True)
-
-    sim_warnings = []
-    if apply_optics_zukan and apply_binocs_zukan:
-        sim_warnings.append("※視認パーツの重複：表記上は効果の大きい双眼鏡が優先されます。")
-    if apply_adv_camo_zukan and apply_camo_net_zukan:
-        sim_warnings.append("※隠蔽パーツの重複：静止時は効果の高い迷彩ネットが優先適用されます。")
-    if sim_warnings:
-        for w in sim_warnings:
-            st.markdown(f"<div style='color:#ff7b72; font-size:0.85em; margin-top:-10px; margin-bottom:5px;'>{w}</div>", unsafe_allow_html=True)
+        sim_warnings = []
+        if apply_optics_zukan and apply_binocs_zukan:
+            sim_warnings.append("※視認パーツ重複：表記上は効果の大きい双眼鏡が優先されます。")
+        if apply_adv_camo_zukan and apply_camo_net_zukan:
+            sim_warnings.append("※隠蔽パーツ重複：静止時は効果の高い迷彩ネットが優先適用されます。")
+        if sim_warnings:
+            for w in sim_warnings:
+                st.markdown(f"<div style='color:#ff7b72; font-size:0.85em; margin-bottom:5px;'>{w}</div>", unsafe_allow_html=True)
 
     crew_mult, skill_mult = calc_crew_and_skill_mult(apply_vents_zukan, apply_food_p_zukan, apply_food_a_zukan, apply_born_leader_zukan)
     is_crew_buffed = (apply_vents_zukan or apply_food_p_zukan or apply_food_a_zukan or apply_born_leader_zukan)
@@ -646,7 +663,7 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
         if apply_snap_shot_zukan: disp_mult *= (1.0 - (0.10 * skill_mult))
         disp_mult /= crew_mult
         sim_disp = sim_val(get_val(t_data, s_gun, '砲塔旋回中の射撃精度'), disp_mult)
-        render_html_zukan("砲塔旋回中の射撃精度", sim_disp, f"M <span style='color:#ff7b72'>{'(バフ適用)' if (apply_vstab_zukan or apply_snap_shot_zukan) else ''}</span>")
+        render_html_zukan("砲塔旋回中の射撃精度", sim_disp, f"M <span style='color:#ff7b72'>{'(バフ適用)' if (apply_vstab_zukan or apply_snap_shot_zukan or is_crew_buffed) else ''}</span>")
         
         render_html_zukan("攻撃半径 (榴弾)", get_val(t_data, s_gun, '攻撃半径'), "M")
         st.markdown("</div>", unsafe_allow_html=True)
@@ -668,6 +685,8 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
         move_v, still_v = get_conceal_values(conceal, tank_type_zukan, apply_camo_zukan, apply_adv_camo_zukan, apply_camo_net_zukan, apply_camo_skill_zukan, apply_green_thumb_zukan, skill_mult)
         camo_suffix = "<span style='color: #ff7b72;'>(-バフ適用)</span>" if (apply_camo_zukan or apply_adv_camo_zukan or apply_camo_net_zukan or apply_camo_skill_zukan or apply_green_thumb_zukan) else ""
         render_html_zukan("発見可能範囲 (移動/静止)", f"{move_v} / {still_v}", f"M {camo_suffix}")
+        if apply_green_thumb_zukan:
+            st.markdown("<div style='text-align:center; color:#ff7b72; font-size:0.8em; margin-top:-10px; margin-bottom:10px;'>※隠蔽の達人は茂みに潜伏中のみ適用されます</div>", unsafe_allow_html=True)
         
         tt_mult = 1.0 * crew_mult
         if apply_fuel_p_zukan: tt_mult *= 1.10
@@ -717,7 +736,7 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
         grouser_suffix = "<span style='color: #ff7b72;'>(バフ適用)</span>" if (apply_grouser_zukan or apply_clutch_braking_zukan) else ""
         res_suffix = "<span style='color: #ff7b72;'>(バフ適用)</span>" if (apply_grouser_zukan or is_crew_buffed) else ""
         render_html_zukan("車体旋回速度", sim_trav, f"度/秒 {grouser_suffix}")
-        render_html_zukan("接地抵抗 (ハード/ミド/ソフト)", sim_res, res_suffix)
+        render_html_zukan("接地抵抗 (ハード/ミド/ソフト)", f"{get_split_str(sim_res, 0)} / {get_split_str(sim_res, 1)} / {get_split_str(sim_res, 2)}", res_suffix)
         
         render_html_zukan("火災発生率", get_val(t_data, s_engine, '火災発生率'), "%")
         render_html_zukan("シルバー獲得レート", get_val(t_data, s_turret, 'シルバー獲得レート'), "%")
@@ -770,40 +789,41 @@ elif st.session_state['app_mode'] == "⚖️ 車輌比較":
         s_radioA = ca5.selectbox("無線(A)", rA) if len(rA)>0 else None
         
         st.markdown("---")
-        st.markdown("**📊 拡張シミュレーション (A)**")
-        
-        c_a1, c_a2, c_a3, c_a4 = st.columns(4)
-        with c_a1:
-            st.markdown("<span style='color:#58a6ff; font-size:0.9em; font-weight:bold;'>⚙️ パーツ (火力/機動)</span>", unsafe_allow_html=True)
-            apply_rammer_A = st.checkbox("装填棒(-7.5%)", key="rammer_A")
-            apply_vstab_A = st.checkbox("安定装置(+20%)", key="vstab_A")
-            apply_gld_A = st.checkbox("射撃装置(-10%)", key="gld_A")
-            apply_vents_A = st.checkbox("換気装置(+5%)", key="vents_A")
-            apply_grouser_A = st.checkbox("グローサー(+7.5%)", key="grouser_A")
-            apply_turbo_A = st.checkbox("ターボ(+5%)", key="turbo_A")
-        with c_a2:
-            st.markdown("<span style='color:#58a6ff; font-size:0.9em; font-weight:bold;'>⚙️ パーツ (視認/隠蔽)</span>", unsafe_allow_html=True)
-            apply_optics_A = st.checkbox("薄膜レンズ", key="optics_A")
-            apply_binocs_A = st.checkbox("双眼鏡(*静止)", key="binocs_A")
-            apply_adv_camo_A = st.checkbox("改良型迷彩", key="adv_A")
-            apply_camo_net_A = st.checkbox("迷彩ネット(*静止)", key="net_A")
-        with c_a3:
-            st.markdown("<span style='color:#58a6ff; font-size:0.9em; font-weight:bold;'>🎨 外観/消耗品</span>", unsafe_allow_html=True)
-            apply_camo_A = st.checkbox("迷彩塗装", key="camo_A")
-            apply_food_p_A = st.checkbox("食料(常時)", key="food_p_A")
-            apply_food_a_A = st.checkbox("食料(使用)", key="food_a_A")
-            apply_fuel_p_A = st.checkbox("燃料(常時)", key="fuel_p_A")
-            apply_fuel_a_A = st.checkbox("燃料(使用)", key="fuel_a_A")
-        with c_a4:
-            st.markdown("<span style='color:#58a6ff; font-size:0.9em; font-weight:bold;'>👤 スキル</span>", unsafe_allow_html=True)
-            apply_born_leader_A = st.checkbox("天性のリーダー", key="born_leader_A")
-            apply_camo_skill_A = st.checkbox("迷彩の専門知識", key="camo_skill_A")
-            apply_green_thumb_A = st.checkbox("隠蔽の達人(*茂み)", key="green_thumb_A")
-            apply_sit_aware_A = st.checkbox("状況判断力", key="sit_aware_A")
-            apply_snap_shot_A = st.checkbox("速射", key="snap_shot_A")
-            apply_rapid_aim_A = st.checkbox("迅速な照準", key="rapid_aim_A")
-            apply_clutch_braking_A = st.checkbox("クラッチの名手", key="clutch_braking_A")
-            apply_signal_expert_A = st.checkbox("通信エキスパート", key="signal_expert_A")
+        with st.expander("🛠️ 拡張シミュレーション (A)"):
+            tankA_type = dfA['タイプ'].iloc[0] if not dfA.empty else "-"
+            
+            c_a1, c_a2, c_a3, c_a4 = st.columns(4)
+            with c_a1:
+                st.markdown("<span style='color:#58a6ff; font-size:0.9em; font-weight:bold;'>⚙️ パーツ (火力/機動)</span>", unsafe_allow_html=True)
+                apply_rammer_A = st.checkbox("装填棒(-7.5%)", key="rammer_A")
+                apply_vstab_A = st.checkbox("安定装置(+20%)", key="vstab_A")
+                apply_gld_A = st.checkbox("射撃装置(-10%)", key="gld_A")
+                apply_vents_A = st.checkbox("換気装置(+5%)", key="vents_A")
+                apply_grouser_A = st.checkbox("グローサー(+7.5%)", key="grouser_A")
+                apply_turbo_A = st.checkbox("ターボ(+5%)", key="turbo_A")
+            with c_a2:
+                st.markdown("<span style='color:#58a6ff; font-size:0.9em; font-weight:bold;'>⚙️ パーツ (視認/隠蔽)</span>", unsafe_allow_html=True)
+                apply_optics_A = st.checkbox("薄膜レンズ", key="optics_A")
+                apply_binocs_A = st.checkbox("双眼鏡(*静止)", key="binocs_A")
+                apply_adv_camo_A = st.checkbox("改良型迷彩", key="adv_A")
+                apply_camo_net_A = st.checkbox("迷彩ネット(*静止)", key="net_A")
+            with c_a3:
+                st.markdown("<span style='color:#58a6ff; font-size:0.9em; font-weight:bold;'>🎨 外観/消耗品</span>", unsafe_allow_html=True)
+                apply_camo_A = st.checkbox("迷彩塗装", key="camo_A")
+                apply_food_p_A = st.checkbox("食料(常時)", key="food_p_A")
+                apply_food_a_A = st.checkbox("食料(使用)", key="food_a_A")
+                apply_fuel_p_A = st.checkbox("燃料(常時)", key="fuel_p_A")
+                apply_fuel_a_A = st.checkbox("燃料(使用)", key="fuel_a_A")
+            with c_a4:
+                st.markdown("<span style='color:#58a6ff; font-size:0.9em; font-weight:bold;'>👤 スキル</span>", unsafe_allow_html=True)
+                apply_born_leader_A = st.checkbox("天性のリーダー", key="born_leader_A")
+                apply_camo_skill_A = st.checkbox("迷彩の専門知識", key="camo_skill_A")
+                apply_green_thumb_A = st.checkbox("隠蔽の達人(*茂み)", key="green_thumb_A")
+                apply_sit_aware_A = st.checkbox("状況判断力", key="sit_aware_A")
+                apply_snap_shot_A = st.checkbox("速射", key="snap_shot_A")
+                apply_rapid_aim_A = st.checkbox("迅速な照準", key="rapid_aim_A")
+                apply_clutch_braking_A = st.checkbox("クラッチの名手", key="clutch_braking_A")
+                apply_signal_expert_A = st.checkbox("通信エキスパート", key="signal_expert_A")
         st.markdown("</div>", unsafe_allow_html=True)
 
     with colB:
@@ -839,40 +859,41 @@ elif st.session_state['app_mode'] == "⚖️ 車輌比較":
         s_radioB = cb5.selectbox("無線(B)", rB) if len(rB)>0 else None
         
         st.markdown("---")
-        st.markdown("**📊 拡張シミュレーション (B)**")
-        
-        c_b1, c_b2, c_b3, c_b4 = st.columns(4)
-        with c_b1:
-            st.markdown("<span style='color:#58a6ff; font-size:0.9em; font-weight:bold;'>⚙️ パーツ (火力/機動)</span>", unsafe_allow_html=True)
-            apply_rammer_B = st.checkbox("装填棒(-7.5%)", key="rammer_B")
-            apply_vstab_B = st.checkbox("安定装置(+20%)", key="vstab_B")
-            apply_gld_B = st.checkbox("射撃装置(-10%)", key="gld_B")
-            apply_vents_B = st.checkbox("換気装置(+5%)", key="vents_B")
-            apply_grouser_B = st.checkbox("グローサー(+7.5%)", key="grouser_B")
-            apply_turbo_B = st.checkbox("ターボ(+5%)", key="turbo_B")
-        with c_b2:
-            st.markdown("<span style='color:#58a6ff; font-size:0.9em; font-weight:bold;'>⚙️ パーツ (視認/隠蔽)</span>", unsafe_allow_html=True)
-            apply_optics_B = st.checkbox("薄膜レンズ", key="optics_B")
-            apply_binocs_B = st.checkbox("双眼鏡(*静止)", key="binocs_B")
-            apply_adv_camo_B = st.checkbox("改良型迷彩", key="adv_B")
-            apply_camo_net_B = st.checkbox("迷彩ネット(*静止)", key="net_B")
-        with c_b3:
-            st.markdown("<span style='color:#58a6ff; font-size:0.9em; font-weight:bold;'>🎨 外観/消耗品</span>", unsafe_allow_html=True)
-            apply_camo_B = st.checkbox("迷彩塗装", key="camo_B")
-            apply_food_p_B = st.checkbox("食料(常時)", key="food_p_B")
-            apply_food_a_B = st.checkbox("食料(使用)", key="food_a_B")
-            apply_fuel_p_B = st.checkbox("燃料(常時)", key="fuel_p_B")
-            apply_fuel_a_B = st.checkbox("燃料(使用)", key="fuel_a_B")
-        with c_b4:
-            st.markdown("<span style='color:#58a6ff; font-size:0.9em; font-weight:bold;'>👤 スキル</span>", unsafe_allow_html=True)
-            apply_born_leader_B = st.checkbox("天性のリーダー", key="born_leader_B")
-            apply_camo_skill_B = st.checkbox("迷彩の専門知識", key="camo_skill_B")
-            apply_green_thumb_B = st.checkbox("隠蔽の達人(*茂み)", key="green_thumb_B")
-            apply_sit_aware_B = st.checkbox("状況判断力", key="sit_aware_B")
-            apply_snap_shot_B = st.checkbox("速射", key="snap_shot_B")
-            apply_rapid_aim_B = st.checkbox("迅速な照準", key="rapid_aim_B")
-            apply_clutch_braking_B = st.checkbox("クラッチの名手", key="clutch_braking_B")
-            apply_signal_expert_B = st.checkbox("通信エキスパート", key="signal_expert_B")
+        with st.expander("🛠️ 拡張シミュレーション (B)"):
+            tankB_type = dfB['タイプ'].iloc[0] if not dfB.empty else "-"
+            
+            c_b1, c_b2, c_b3, c_b4 = st.columns(4)
+            with c_b1:
+                st.markdown("<span style='color:#58a6ff; font-size:0.9em; font-weight:bold;'>⚙️ パーツ (火力/機動)</span>", unsafe_allow_html=True)
+                apply_rammer_B = st.checkbox("装填棒(-7.5%)", key="rammer_B")
+                apply_vstab_B = st.checkbox("安定装置(+20%)", key="vstab_B")
+                apply_gld_B = st.checkbox("射撃装置(-10%)", key="gld_B")
+                apply_vents_B = st.checkbox("換気装置(+5%)", key="vents_B")
+                apply_grouser_B = st.checkbox("グローサー(+7.5%)", key="grouser_B")
+                apply_turbo_B = st.checkbox("ターボ(+5%)", key="turbo_B")
+            with c_b2:
+                st.markdown("<span style='color:#58a6ff; font-size:0.9em; font-weight:bold;'>⚙️ パーツ (視認/隠蔽)</span>", unsafe_allow_html=True)
+                apply_optics_B = st.checkbox("薄膜レンズ", key="optics_B")
+                apply_binocs_B = st.checkbox("双眼鏡(*静止)", key="binocs_B")
+                apply_adv_camo_B = st.checkbox("改良型迷彩", key="adv_B")
+                apply_camo_net_B = st.checkbox("迷彩ネット(*静止)", key="net_B")
+            with c_b3:
+                st.markdown("<span style='color:#58a6ff; font-size:0.9em; font-weight:bold;'>🎨 外観/消耗品</span>", unsafe_allow_html=True)
+                apply_camo_B = st.checkbox("迷彩塗装", key="camo_B")
+                apply_food_p_B = st.checkbox("食料(常時)", key="food_p_B")
+                apply_food_a_B = st.checkbox("食料(使用)", key="food_a_B")
+                apply_fuel_p_B = st.checkbox("燃料(常時)", key="fuel_p_B")
+                apply_fuel_a_B = st.checkbox("燃料(使用)", key="fuel_a_B")
+            with c_b4:
+                st.markdown("<span style='color:#58a6ff; font-size:0.9em; font-weight:bold;'>👤 スキル</span>", unsafe_allow_html=True)
+                apply_born_leader_B = st.checkbox("天性のリーダー", key="born_leader_B")
+                apply_camo_skill_B = st.checkbox("迷彩の専門知識", key="camo_skill_B")
+                apply_green_thumb_B = st.checkbox("隠蔽の達人(*茂み)", key="green_thumb_B")
+                apply_sit_aware_B = st.checkbox("状況判断力", key="sit_aware_B")
+                apply_snap_shot_B = st.checkbox("速射", key="snap_shot_B")
+                apply_rapid_aim_B = st.checkbox("迅速な照準", key="rapid_aim_B")
+                apply_clutch_braking_B = st.checkbox("クラッチの名手", key="clutch_braking_B")
+                apply_signal_expert_B = st.checkbox("通信エキスパート", key="signal_expert_B")
         st.markdown("</div>", unsafe_allow_html=True)
 
     html = "<table class='comp-table'>"
@@ -928,7 +949,7 @@ elif st.session_state['app_mode'] == "⚖️ 車輌比較":
     html += comp_tr("弾速 (最大/通常弾)", get_split_str(get_val(dfA, s_gunA, '弾薬の最大速度'), 0), get_split_str(get_val(dfB, s_gunB, '弾薬の最大速度'), 0), True, "m/s")
     html += comp_tr("弾速 (金弾/APCR等)", get_split_str(get_val(dfA, s_gunA, '弾薬の最大速度'), 1), get_split_str(get_val(dfB, s_gunB, '弾薬の最大速度'), 1), True, "m/s")
     html += comp_tr("弾薬の最大射程", get_split_str(get_val(dfA, s_gunA, '弾薬の最大射程'), 0), get_split_str(get_val(dfB, s_gunB, '弾薬の最大射程'), 0), True, "m")
-    html += comp_tr("総弾数", get_split_str(get_val(dfA, s_gunA, '総弾数'), 0), get_split_str(get_val(dfB, s_gunB, '総弾数'), 0), True, "発")
+    html += comp_tr("総弾数", get_val(dfA, s_gunA, '総弾数'), get_val(dfB, s_gunB, '総弾数'), True, "発")
     
     disp_mult_A = 0.80 if apply_vstab_A else 1.0
     if apply_snap_shot_A: disp_mult_A *= (1.0 - (0.10 * skill_mult_A))
@@ -961,7 +982,7 @@ elif st.session_state['app_mode'] == "⚖️ 車輌比較":
     concealA = get_val(dfA, s_turretA, '発見可能範囲')
     concealB = get_val(dfB, s_turretB, '発見可能範囲')
     moveA_val, stillA_val = get_conceal_values(concealA, tankA_type, apply_camo_A, apply_adv_camo_A, apply_camo_net_A, apply_camo_skill_A, apply_green_thumb_A, skill_mult_A)
-    moveB_val, stillB_val = get_conceal_values(concealB, tankB_type, apply_camo_B, apply_adv_camo_B, apply_camo_net_B, apply_camo_skill_B, skill_mult_B)
+    moveB_val, stillB_val = get_conceal_values(concealB, tankB_type, apply_camo_B, apply_adv_camo_B, apply_camo_net_B, apply_camo_skill_B, apply_green_thumb_B, skill_mult_B)
     html += comp_tr("発見可能範囲 (移動時)", moveA_val, moveB_val, False, "m")
     html += comp_tr("発見可能範囲 (静止時)", stillA_val, stillB_val, False, "m")
     
@@ -1020,7 +1041,7 @@ elif st.session_state['app_mode'] == "⚖️ 車輌比較":
     
     html += comp_tr("シルバー獲得レート", get_val(dfA, s_turretA, 'シルバー獲得レート'), get_val(dfB, s_turretB, 'シルバー獲得レート'), True, "%")
     html += comp_tr("EXP獲得レート", get_val(dfA, s_turretA, 'EXP獲得レート'), get_val(dfB, s_turretB, 'EXP獲得レート'), True, "%")
-    html += comp_tr("フリーEXP獲得レート", get_val(dfA, s_turretA, 'フリーEXP獲得レート'), get_val(dfB, s_turretB, 'フリーEXP獲得レート'), True, "%")
+    html += comp_tr("フリーEXP獲得レート", get_val(dfA, s_turretA, 'フリーEXPレート'), get_val(dfB, s_turretB, 'フリーEXPレート'), True, "%")
     
     crew_exp_A = get_crew_exp_str(get_val(dfA, s_turretA, '搭乗員EXPレート'), apply_food_p_A)
     crew_exp_B = get_crew_exp_str(get_val(dfB, s_turretB, '搭乗員EXPレート'), apply_food_p_B)
@@ -1195,7 +1216,7 @@ elif st.session_state['app_mode'] == "🛡️ 装甲計算シミュレーター"
         
         if angle_deg >= 70.0 and ("HEAT" not in ammo_type and "HE" not in ammo_type):
             st.markdown("<div class='armor-result-bounce'>跳弾 (Ricochet)</div>", unsafe_allow_html=True)
-            st.info("※APおよびAPCR弾は、着弾角度が70度以上の場合、強制跳弾（Auto-Bounce）となります。（3倍ルール適応時を除く）")
+            st.info("※APおよびAPCR弾は、着弾角度が70度以上の場合、装甲厚に関わらず強制跳弾（Auto-Bounce）となります。（3倍ルール適応時を除く）")
         elif angle_deg >= 85.0 and "HEAT" in ammo_type:
             st.markdown("<div class='armor-result-bounce'>跳弾 (Ricochet)</div>", unsafe_allow_html=True)
             st.info("※HEAT弾は着弾角度が85度以上で強制跳弾となります。")
