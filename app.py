@@ -13,7 +13,7 @@ try:
 except ImportError:
     HAS_IMG_COORD = False
 
-# ページ設定
+# ページ設定 (スマホ対応のため initial_sidebar_state を auto に変更)
 st.set_page_config(page_title="RECAT 総合データコンソール", layout="wide", initial_sidebar_state="auto")
 
 # === セッションステートの初期化 ===
@@ -48,16 +48,13 @@ for potential_img in ["Screenshot 2026-07-17 23-00-25.jpg", "Screenshot 2026-07-
         SAMPLE_IMG_FILE = potential_img
         break
 
-# === CSS (公式サイト風フラットUI・ボタン化対応) ===
+# === CSS (公式サイト風モバイル・フラットレイアウト・パネルUI) ===
 css_string = """
 <style>
 /* 全体背景をダークに強制 */
 .stApp { background-color: #111111 !important; }
 [data-testid="stSidebar"] { background-color: #1a1a1a !important; border-right: 1px solid #333; }
 .stApp, .stApp p, .stApp label, .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6, .stApp span { color: #e5e5e5 !important; }
-
-/* PC向け基本レイアウト */
-.block-container { max-width: 1600px; padding-top: 1.5rem; }
 
 /* === ラジオボタンを公式風モジュールパネルに偽装 === */
 .stRadio div[role="radiogroup"] > label {
@@ -70,10 +67,11 @@ css_string = """
     cursor: pointer !important;
     transition: all 0.2s ease !important;
 }
-/* 選択時のハイライト (最近のブラウザのみ対応) */
+/* 選択時のハイライト */
 .stRadio div[role="radiogroup"] > label:has(input:checked) {
     border-color: #58a6ff !important;
     background-color: rgba(88, 166, 255, 0.1) !important;
+    box-shadow: 0 0 5px rgba(88,166,255,0.3);
 }
 .stRadio div[role="radiogroup"] > label:hover {
     border-color: #8b949e !important;
@@ -94,6 +92,15 @@ css_string = """
     font-weight: bold !important;
 }
 
+/* その他のUIパーツ */
+ul[role="listbox"], ul[role="listbox"] * { background-color: #1f1f1f !important; color: #ffffff !important; }
+li[role="option"] { background-color: #1f1f1f !important; color: #ffffff !important; }
+li[role="option"]:hover, li[role="option"]:focus, li[aria-selected="true"] { background-color: #333333 !important; color: #60a5fa !important; border-left: 3px solid #60a5fa; }
+div[data-baseweb="select"] > div { background-color: #1f1f1f !important; color: #ffffff !important; border: 1px solid #333 !important; border-radius: 4px !important; }
+input { background-color: #1f1f1f !important; color: #ffffff !important; border: 1px solid #333 !important; border-radius: 4px !important; }
+div[data-testid="stButton"] button { background-color: #1f1f1f !important; color: #60a5fa !important; border: 1px solid #333 !important; border-radius: 4px !important; }
+div[data-testid="stButton"] button:hover { background-color: #333333 !important; color: #ffffff !important; border: 1px solid #60a5fa !important; }
+
 /* === 公式サイト風リストレイアウト (車輌図鑑詳細用) === */
 .off-row { 
     display: flex; 
@@ -105,9 +112,9 @@ css_string = """
 .off-row:hover { background-color: rgba(255,255,255,0.02); }
 .off-label { 
     color: #a1a1aa; 
-    font-size: 0.8em; 
+    font-size: 0.85em; 
     font-weight: 400; 
-    width: 60%;
+    width: 55%;
     line-height: 1.2;
 }
 .off-val { 
@@ -115,11 +122,11 @@ css_string = """
     font-size: 0.9em; 
     font-weight: 600; 
     text-align: right; 
-    width: 40%;
+    width: 45%;
 }
 .off-suf { 
     color: #9ca3af; 
-    font-size: 0.7em; 
+    font-size: 0.75em; 
     font-weight: normal; 
     margin-left: 2px; 
 }
@@ -134,40 +141,64 @@ css_string = """
     color: #e5e5e5;
 }
 
+/* セクションタイトル */
+.panel-title { 
+    font-size: 1.2em !important; 
+    color: #e2e8f0 !important; 
+    margin-top: 25px; 
+    margin-bottom: 10px; 
+    border-bottom: 2px solid #94a3b8 !important; 
+    padding-bottom: 8px; 
+    font-weight: 500;
+    letter-spacing: 0.5px; 
+}
+
 /* 主要性能トップボード */
 .major-stat-box { margin-bottom: 15px; }
 .major-stat-title { font-size: 0.9em; color: #a1a1aa; border-bottom: 1px solid #374151; padding-bottom: 3px; margin-bottom: 5px; }
 .major-stat-value { font-size: 1.8em; font-weight: bold; color: #ffffff; line-height: 1.1; }
-.major-stat-unit { font-size: 0.4em; color: #a1a1aa; font-weight: normal; }
+.major-stat-unit { font-size: 0.45em; color: #a1a1aa; font-weight: normal; }
 
-/* 比較用等のパネルボックス */
+/* PC向けのコンテナ調整 */
+.block-container { max-width: 1600px; padding-top: 1.5rem; }
 .panel-box { padding: 20px; background-color: #161b22; border-radius: 8px; margin-bottom: 24px; border: 1px solid #2d3748; }
 
-/* 車輌画像表示用クラス */
-.tank-image-container { text-align: center; margin-bottom: 10px; padding: 10px; }
-.tank-image { max-width: 100%; max-height: 250px; object-fit: contain; filter: drop-shadow(0px 10px 15px rgba(0,0,0,0.8)); }
-
-.header-logo { width: 140px; height: auto; display: block; margin: 0 auto 15px auto; }
-.sidebar-logo { width: 110px; height: auto; display: block; margin: 0 auto 10px auto; }
-
-/* === 比較・その他既存CSS === */
+/* 比較テーブル */
 .comp-table { width: 100%; border-collapse: separate; border-spacing: 0; margin-top: 10px; font-size: 0.95em; background-color: #161b22; border-radius: 8px; overflow: hidden; border: 1px solid #2d3748; }
 .comp-table th { background-color: #1f2937; padding: 12px; border-bottom: 2px solid #60a5fa; text-align: center; font-size: 1.0em; color: #ffffff !important; }
 .comp-table td { padding: 10px 12px; border-bottom: 1px solid #2d3748; text-align: center; color: #e5e5e5 !important;}
 .comp-label { text-align: left !important; color: #9ca3af !important; width: 28%; font-weight: 500; background-color: #0d1117; }
 .win-stat { color: #60a5fa !important; font-weight: bold; background-color: rgba(96, 165, 250, 0.1); }
+
+/* 装甲シミュレーター結果 */
 .armor-result { font-size: 3.5em !important; font-weight: 800 !important; color: #f87171 !important; text-align: center !important; margin-top: 10px !important; margin-bottom: 5px !important; line-height: 1.1 !important; display: block !important; text-shadow: 0 0 10px rgba(248,113,114,0.3); }
 .armor-result-bounce { font-size: 2.8em !important; font-weight: 800 !important; color: #9ca3af !important; text-align: center !important; margin-top: 10px !important; margin-bottom: 5px !important; display: block !important;}
 
-/* スマホレイアウト */
+/* 車輌画像表示用クラス */
+.tank-image-container { text-align: center; margin-bottom: 10px; padding: 10px; }
+.tank-image { max-width: 100%; max-height: 250px; object-fit: contain; filter: drop-shadow(0px 10px 15px rgba(0,0,0,0.8)); }
+.header-logo { width: 140px; height: auto; display: block; margin: 0 auto 15px auto; }
+.sidebar-logo { width: 110px; height: auto; display: block; margin: 0 auto 10px auto; }
+
+/* === スマホ向け専用完全フラットレイアウト（画面幅768px以下） === */
 @media (max-width: 768px) {
-    .block-container { padding-left: 12px !important; padding-right: 12px !important; padding-top: 1rem !important; }
+    .block-container { padding-left: 10px !important; padding-right: 10px !important; padding-top: 1rem !important; }
+    .panel-box { padding: 0px !important; background-color: transparent !important; border: none !important; box-shadow: none !important; margin-bottom: 25px !important; }
     .tank-image { max-height: 180px; }
-    .major-stat-value { font-size: 1.4em; }
-    .off-label { font-size: 0.85em; }
-    .off-val { font-size: 0.9em; }
+    .major-stat-value { font-size: 1.5em; }
+    .off-row { padding: 12px 2px; }
+    .off-label { font-size: 0.9em; }
+    .off-val { font-size: 1.0em; }
+    .off-suf { font-size: 0.8em; }
+    .comp-table { font-size: 0.75em !important; border-radius: 4px !important; }
+    .comp-table th { padding: 8px 4px !important; font-size: 0.9em !important; }
+    .comp-table td { padding: 8px 4px !important; }
+    .comp-label { width: 35% !important; font-size: 0.85em !important; }
+    .armor-result { font-size: 2.8em !important; }
+    .armor-result-bounce { font-size: 2.2em !important; }
     h1 { font-size: 1.4em !important; margin-top: -15px !important; }
     .header-logo { width: 110px; margin-bottom: 10px; }
+    div[data-testid="stExpander"] { background-color: #1f1f1f !important; border-radius: 8px !important; border: 1px solid #333 !important; }
 }
 </style>
 """
@@ -289,8 +320,18 @@ if df.empty:
     st.stop()
 
 # ==========================================
-# 拡張シミュレーション 計算ロジック
+# 拡張シミュレーション & ユーティリティ
 # ==========================================
+def get_tank_image_base64(tank_name):
+    """ローカルのtanksフォルダから画像を読み込み、なければプレースホルダーを返す"""
+    safe_name = re.sub(r'[\\/*?:"<>|]', "", tank_name)
+    img_path = os.path.join(base_dir, "tanks", f"{safe_name}.png")
+    if os.path.exists(img_path):
+        with open(img_path, 'rb') as f:
+            data = f.read()
+        return f"data:image/png;base64,{base64.b64encode(data).decode()}"
+    return f"https://via.placeholder.com/800x400/1f2937/58a6ff?text={tank_name.replace(' ', '+')}"
+
 def sim_val(base_str, mult, is_int=False):
     if mult == 1.0: return base_str
     if pd.isna(base_str) or str(base_str).strip() == "-": return "-"
@@ -532,6 +573,7 @@ def render_html_zukan(label, value, suffix=""):
     if value and str(value) != "-":
         st.markdown(f"<div class='off-row'><div class='off-label'>{label}</div><div class='off-val'>{value} <span class='off-suf'>{suffix}</span></div></div>", unsafe_allow_html=True)
 
+
 # ==========================================
 # 0. ホーム（メインメニュー）
 # ==========================================
@@ -589,10 +631,12 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
     z_nation = c3.selectbox("国別", ["すべて"] + list(f_df['国'].dropna().unique()), label_visibility="collapsed")
     z_type = c4.selectbox("車種", ["すべて", "軽戦車", "中戦車", "重戦車", "駆逐戦車", "自走砲"], label_visibility="collapsed")
     z_tier = c5.selectbox("Tier / 時代", ["すべて", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "戦後", "エスカレーション", "デタント"], label_visibility="collapsed")
+    
     if z_q: f_df = f_df[f_df['正確な車輌名'].str.contains(z_q, case=False, na=False)]
     if z_nation != "すべて": f_df = f_df[f_df['国'] == z_nation]
     if z_type != "すべて": f_df = f_df[f_df['タイプ'] == z_type]
     if z_tier != "すべて": f_df = f_df[(f_df['Tier'] == z_tier) | (f_df['時代'] == z_tier)]
+    
     tank_list = sorted(f_df['正確な車輌名'].unique())
     if not tank_list: 
         st.warning("条件に一致する車輌がありません。")
@@ -607,7 +651,7 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
     st.markdown(f"<div class='tank-image-container'><img src='{img_b64}' class='tank-image'></div>", unsafe_allow_html=True)
 
     # === UIコンテナの定義（描画順の制御） ===
-    major_stats_container = st.container()
+    major_stats_placeholder = st.container()
     st.markdown("<div class='panel-title'>モジュールのカスタマイズ</div>", unsafe_allow_html=True)
     modules_container = st.container()
     sim_container = st.container()
@@ -641,11 +685,12 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
 
     # === 拡張シミュレーションの設定 ===
     with sim_container:
+        st.markdown("<div class='panel-title' style='margin-top:20px; margin-bottom: 10px;'>📊 拡張シミュレーション (タップで設定を展開)</div>", unsafe_allow_html=True)
         camo_txt = get_camo_bonus_text(tank_type_zukan)
         adv_camo_txt = get_adv_camo_text(tank_type_zukan)
         camo_net_txt = get_camo_net_text(tank_type_zukan)
         
-        with st.expander("🛠️ 拡張シミュレーション (パーツ・消耗品・スキル)", expanded=False):
+        with st.expander("🛠️ パーツ・消耗品・スキル設定", expanded=False):
             c_sim1, c_sim2, c_sim3, c_sim4 = st.columns(4)
             with c_sim1:
                 st.markdown("<div style='color:#58a6ff; font-weight:bold; margin-bottom:8px;'>⚙️ パーツ (火力・共通)</div>", unsafe_allow_html=True)
@@ -745,7 +790,6 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
     camo_fmt = f"{move_v}/{still_v}"
 
     # エコノミー情報
-    price_val = "価格情報なし"
     silver_rate = get_val(t_data, s_turret, 'シルバー獲得レート')
     exp_rate = get_val(t_data, s_turret, 'EXP獲得レート')
     free_exp_rate = get_val(t_data, s_turret, 'フリーEXPレート')
@@ -753,7 +797,7 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
     mm_tier = get_val(t_data, s_turret, '最大TIER')
 
     # === 「主要性能」トップボードの描画 ===
-    with major_stats_container:
+    with major_stats_placeholder:
         st.markdown("<div class='panel-title'>主要性能</div>", unsafe_allow_html=True)
         col_eco, col_stat1, col_stat2, col_stat3 = st.columns([1.2, 1, 1, 1])
         
@@ -763,7 +807,7 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
             <div class="off-row"><div class="off-label">シルバー</div><div class="off-val">{silver_rate}<span class="off-suf">%</span></div></div>
             <div class="off-row"><div class="off-label">車輌EXP</div><div class="off-val">{exp_rate}<span class="off-suf">%</span></div></div>
             <div class="off-row"><div class="off-label">フリーEXP</div><div class="off-val">{free_exp_rate}<span class="off-suf">%</span></div></div>
-            <div class="off-row"><div class="off-label">搭乗員EXP</div><div class="off-val" style="{'color:#60a5fa;' if apply_food_p_zukan else ''}">{crew_exp_sim}<span class="off-suf">%</span></div></div>
+            <div class="off-row"><div class="off-label">搭乗員EXP</div><div class="off-val" style="{('color:#60a5fa;' if apply_food_p_zukan else '')}">{crew_exp_sim}<span class="off-suf">%</span></div></div>
             <div style="font-size:0.9em; font-weight:bold; color:#e5e5e5; border-bottom:1px solid #333; padding-bottom:5px; margin-top:15px; margin-bottom:10px;">マッチメイキング</div>
             <div class="off-row"><div class="off-label">最大 TIER</div><div class="off-val">{mm_tier}</div></div>
             """, unsafe_allow_html=True)
@@ -989,7 +1033,7 @@ elif st.session_state['app_mode'] == "⚖️ 車輌比較":
             
             c_b1, c_b2, c_b3, c_b4 = st.columns(4)
             with c_b1:
-                st.markdown("<span style='color:#58a6ff; font-size:0.9em; font-weight:bold;'>⚙️ パーツ (火力/機動)</span>", unsafe_allow_html=True)
+                st.markdown("<span style='color:#58a6ff; font-weight:bold; margin-bottom:8px;'>⚙️ パーツ (火力/機動)</span>", unsafe_allow_html=True)
                 apply_rammer_B = st.checkbox("装填棒(-7.5%)", key="rammer_B")
                 apply_vstab_B = st.checkbox("安定装置(+20%)", key="vstab_B")
                 apply_gld_B = st.checkbox("射撃装置(-10%)", key="gld_B")
@@ -997,20 +1041,20 @@ elif st.session_state['app_mode'] == "⚖️ 車輌比較":
                 apply_grouser_B = st.checkbox("グローサー(+7.5%)", key="grouser_B")
                 apply_turbo_B = st.checkbox("ターボ(+5%)", key="turbo_B")
             with c_b2:
-                st.markdown("<span style='color:#58a6ff; font-size:0.9em; font-weight:bold;'>⚙️ パーツ (視認/隠蔽)</span>", unsafe_allow_html=True)
+                st.markdown("<span style='color:#58a6ff; font-weight:bold; margin-bottom:8px;'>⚙️ パーツ (視認/隠蔽)</span>", unsafe_allow_html=True)
                 apply_optics_B = st.checkbox("薄膜レンズ", key="optics_B")
                 apply_binocs_B = st.checkbox("双眼鏡(*静止)", key="binocs_B")
                 apply_adv_camo_B = st.checkbox("改良型迷彩", key="adv_B")
                 apply_camo_net_B = st.checkbox("迷彩ネット(*静止)", key="net_B")
             with c_b3:
-                st.markdown("<span style='color:#58a6ff; font-size:0.9em; font-weight:bold;'>🎨 外観/消耗品</span>", unsafe_allow_html=True)
+                st.markdown("<span style='color:#58a6ff; font-weight:bold; margin-bottom:8px;'>🎨 外観/消耗品</span>", unsafe_allow_html=True)
                 apply_camo_B = st.checkbox("迷彩塗装", key="camo_B")
                 apply_food_p_B = st.checkbox("食料(常時)", key="food_p_B")
                 apply_food_a_B = st.checkbox("食料(使用)", key="food_a_B")
                 apply_fuel_p_B = st.checkbox("燃料(常時)", key="fuel_p_B")
                 apply_fuel_a_B = st.checkbox("燃料(使用)", key="fuel_a_B")
             with c_b4:
-                st.markdown("<span style='color:#58a6ff; font-size:0.9em; font-weight:bold;'>👤 スキル</span>", unsafe_allow_html=True)
+                st.markdown("<span style='color:#58a6ff; font-weight:bold; margin-bottom:8px;'>👤 スキル</span>", unsafe_allow_html=True)
                 apply_born_leader_B = st.checkbox("天性のリーダー", key="born_leader_B")
                 apply_camo_skill_B = st.checkbox("迷彩の専門知識", key="camo_skill_B")
                 apply_green_thumb_B = st.checkbox("隠蔽の達人(*茂み)", key="green_thumb_B")
@@ -1062,6 +1106,10 @@ elif st.session_state['app_mode'] == "⚖️ 車輌比較":
     acc_mult_A = 1.0 / crew_mult_A
     acc_mult_B = 1.0 / crew_mult_B
     html += comp_tr("精度", sim_val(get_val(dfA, s_gunA, '精度(m)'), acc_mult_A), sim_val(get_val(dfB, s_gunB, '精度(m)'), acc_mult_B), False, "m")
+    
+    move_disp_mult_A = 1.0 / crew_mult_A
+    move_disp_mult_B = 1.0 / crew_mult_B
+    html += comp_tr("走行中の精度 (移動時)", sim_val(get_val(dfA, s_gunA, '走行中の精度'), move_disp_mult_A), sim_val(get_val(dfB, s_gunB, '走行中の精度'), move_disp_mult_B), False, "m")
     
     rof_mult_A = 1.0 * crew_mult_A
     rof_mult_B = 1.0 * crew_mult_B
