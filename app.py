@@ -95,7 +95,7 @@ if logo_base64:
     background-attachment: fixed;
     """
 
-# === CSS (完全ダークモード・すりガラスUI・モジュール横並び対応) ===
+# === CSS (完全ダークモード・すりガラスUI・モジュール全収め対応) ===
 css_string = f"""
 <style>
 /* 全体背景の設定 */
@@ -118,59 +118,30 @@ css_string = f"""
     box-shadow: 0 8px 24px rgba(0,0,0,0.8); 
 }}
 
-/* =========================================================
-   ラジオボタンを公式の四角いモジュールパネルに完全偽装
-   ========================================================= */
-div[data-testid="stRadio"] div[role="radiogroup"] {{
-    gap: 6px; /* パネル間の隙間 */
-}}
-div[data-testid="stRadio"] div[role="radiogroup"] > label[data-baseweb="radio"] {{
-    background-color: rgba(30, 40, 50, 0.4) !important;
-    border: 2px solid transparent !important;
-    border-radius: 2px !important;
-    padding: 12px 6px !important;
-    margin-bottom: 0 !important;
-    display: flex !important;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer !important;
-    min-height: 80px; /* 四角いパネルの高さを確保 */
-    transition: all 0.2s ease !important;
+/* ラジオボタンを公式風モジュールパネルに偽装 (元の角丸半透明デザイン) */
+.stRadio div[role="radiogroup"] > label {{
+    background-color: rgba(31, 41, 55, 0.7) !important;
     backdrop-filter: blur(5px);
     -webkit-backdrop-filter: blur(5px);
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    border-radius: 6px !important;
+    padding: 12px 10px !important;
+    margin-bottom: 8px !important;
+    display: block !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
 }}
-/* 選択時のハイライト (公式サイト風：水色の四角い枠) */
-div[data-testid="stRadio"] div[role="radiogroup"] > label[data-baseweb="radio"][aria-checked="true"],
-div[data-testid="stRadio"] div[role="radiogroup"] > label[data-baseweb="radio"]:has(input:checked) {{
+.stRadio div[role="radiogroup"] > label:has(input:checked) {{
+    border-color: #58a6ff !important;
     background-color: rgba(88, 166, 255, 0.15) !important;
-    border: 2px solid #8ab4f8 !important; /* 公式風の水色枠 */
+    box-shadow: 0 0 8px rgba(88,166,255,0.4);
 }}
-/* Hover時 */
-div[data-testid="stRadio"] div[role="radiogroup"] > label[data-baseweb="radio"]:hover {{
-    background-color: rgba(255, 255, 255, 0.08) !important;
+.stRadio div[role="radiogroup"] > label:hover {{
+    border-color: #8b949e !important;
 }}
-/* ラジオの丸(○)を確実に消す */
-div[data-testid="stRadio"] div[role="radiogroup"] > label[data-baseweb="radio"] > div:first-child {{
-    display: none !important;
-}}
-/* テキストのスタイル */
-div[data-testid="stRadio"] div[role="radiogroup"] > label[data-baseweb="radio"] p {{
-    color: #8b949e !important;
-    font-size: 0.85em !important;
-    font-weight: 500 !important;
-    margin: 0 !important;
-    text-align: center !important;
-    line-height: 1.2 !important;
-    word-break: break-word;
-    width: 100%;
-}}
-/* 選択中のテキストを白く光らせる */
-div[data-testid="stRadio"] div[role="radiogroup"] > label[data-baseweb="radio"][aria-checked="true"] p,
-div[data-testid="stRadio"] div[role="radiogroup"] > label[data-baseweb="radio"]:has(input:checked) p {{
-    color: #ffffff !important;
-    font-weight: bold !important;
-}}
-/* ========================================================= */
+.stRadio div[role="radiogroup"] > label div[data-baseweb="radio"] {{ display: none !important; }}
+.stRadio div[role="radiogroup"] > label p {{ color: #e5e5e5 !important; font-size: 0.85em !important; font-weight: 500 !important; margin: 0 !important; text-align: center !important; line-height: 1.2 !important; }}
+.stRadio div[role="radiogroup"] > label:has(input:checked) p {{ color: #58a6ff !important; font-weight: bold !important; }}
 
 /* その他のUIパーツ */
 ul[role="listbox"], ul[role="listbox"] * {{ background-color: #1f1f1f !important; color: #ffffff !important; }}
@@ -241,38 +212,47 @@ div[data-testid="stButton"] button:hover {{ background-color: rgba(88, 166, 255,
     .off-val {{ font-size: 1.0em; }}
     .off-suf {{ font-size: 0.8em; }}
     
-    /* ======== スマホ版モジュールの「横スクロール」ハック ======== */
+    /* ======== スマホ版モジュールの「横並び全収め」ハック ======== */
     .module-scroll-wrapper + div[data-testid="stHorizontalBlock"] {{
         flex-direction: row !important;
         flex-wrap: nowrap !important;
-        overflow-x: auto !important;
-        overflow-y: hidden !important;
-        padding-bottom: 10px !important;
-        -webkit-overflow-scrolling: touch;
-        gap: 0.3rem !important;
+        overflow-x: hidden !important; /* スクロールさせず1画面に収める */
+        padding-bottom: 5px !important;
+        gap: 2px !important; /* 隙間を極力狭く */
     }}
-    /* 横スクロール内の各カラムの幅を固定 */
+    /* 各カラムの幅を柔軟に圧縮（5等分） */
     .module-scroll-wrapper + div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {{
-        min-width: 90px !important;
-        width: 90px !important;
-        flex: 0 0 auto !important;
+        min-width: 0 !important;
+        flex: 1 1 0 !important;
+        padding: 0 1px !important;
     }}
     /* スマホ版モジュールヘッダー文字調整 */
     .mod-header {{
-        font-size: 0.8em !important;
+        font-size: 0.65em !important;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
         padding-bottom: 2px !important;
-        margin-bottom: 5px !important;
+        margin-bottom: 4px !important;
+        text-align: center;
     }}
     /* スマホ版ラジオボタン内の文字を小さくして収める */
-    div[data-testid="stRadio"] div[role="radiogroup"] > label[data-baseweb="radio"] p {{
-        font-size: 0.7em !important;
+    .stRadio div[role="radiogroup"] > label p {{
+        font-size: 0.58em !important;
+        word-break: break-all !important;
+        white-space: normal !important;
+        line-height: 1.1 !important;
     }}
-    div[data-testid="stRadio"] div[role="radiogroup"] > label[data-baseweb="radio"] {{
-        min-height: 60px !important;
-        padding: 6px 2px !important;
+    .stRadio div[role="radiogroup"] > label {{
+        min-height: 45px !important;
+        padding: 4px 2px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        margin-bottom: 4px !important;
+    }}
+    .stRadio div[role="radiogroup"] {{
+        gap: 2px !important;
     }}
     /* ============================================================ */
 
@@ -776,7 +756,7 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
     radios = t_data[t_data['モジュール種類'] == '無線']['モジュール状態'].unique()
     
     with modules_container:
-        st.markdown("<div class='module-scroll-wrapper'></div>", unsafe_allow_html=True) # 横スクロール化アンカー
+        st.markdown("<div class='module-scroll-wrapper'></div>", unsafe_allow_html=True) # 横並び一画面圧縮ハック
         mc1, mc2, mc3, mc4, mc5 = st.columns(5)
         with mc1:
             st.markdown("<div class='mod-header'>主砲</div>", unsafe_allow_html=True)
@@ -957,7 +937,7 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
 
     # === モジュール詳細の描画 ===
     with details_container:
-        st.markdown("<div class='module-scroll-wrapper'></div>", unsafe_allow_html=True) # 横スクロール化アンカー
+        st.markdown("<div class='module-scroll-wrapper'></div>", unsafe_allow_html=True) # 横並び一画面圧縮ハック
         d1, d2, d3, d4, d5 = st.columns(5)
         
         with d1:
@@ -1067,6 +1047,7 @@ elif st.session_state['app_mode'] == "⚖️ 車輌比較":
         
         dfA = df[df['正確な車輌名'] == tankA]
         
+        st.markdown("<div class='module-scroll-wrapper'></div>", unsafe_allow_html=True) # 横並び一画面圧縮ハック
         ca1, ca2, ca3 = st.columns(3)
         gA = dfA[dfA['モジュール種類'] == '主砲']['モジュール状態'].unique()
         tA = dfA[dfA['モジュール種類'] == '砲塔']['モジュール状態'].unique()
@@ -1074,6 +1055,8 @@ elif st.session_state['app_mode'] == "⚖️ 車輌比較":
         s_gunA = ca1.selectbox("主砲(A)", gA) if len(gA)>0 else None
         s_turretA = ca2.selectbox("砲塔(A)", tA) if len(tA)>0 else None
         s_engineA = ca3.selectbox("エンジン(A)", eA) if len(eA)>0 else None
+        
+        st.markdown("<div class='module-scroll-wrapper'></div>", unsafe_allow_html=True) # 横並び一画面圧縮ハック
         ca4, ca5, _ = st.columns(3)
         suspA = dfA[dfA['モジュール種類'] == 'サスペンション']['モジュール状態'].unique()
         rA = dfA[dfA['モジュール種類'] == '無線']['モジュール状態'].unique()
@@ -1138,6 +1121,7 @@ elif st.session_state['app_mode'] == "⚖️ 車輌比較":
         
         dfB = df[df['正確な車輌名'] == tankB]
         
+        st.markdown("<div class='module-scroll-wrapper'></div>", unsafe_allow_html=True) # 横並び一画面圧縮ハック
         cb1, cb2, cb3 = st.columns(3)
         gB = dfB[dfB['モジュール種類'] == '主砲']['モジュール状態'].unique()
         tB = dfB[dfB['モジュール種類'] == '砲塔']['モジュール状態'].unique()
@@ -1145,6 +1129,8 @@ elif st.session_state['app_mode'] == "⚖️ 車輌比較":
         s_gunB = cb1.selectbox("主砲(B)", gB) if len(gB)>0 else None
         s_turretB = cb2.selectbox("砲塔(B)", tB) if len(tB)>0 else None
         s_engineB = cb3.selectbox("エンジン(B)", eB) if len(eB)>0 else None
+        
+        st.markdown("<div class='module-scroll-wrapper'></div>", unsafe_allow_html=True) # 横並び一画面圧縮ハック
         cb4, cb5, _ = st.columns(3)
         suspB = dfB[dfB['モジュール種類'] == 'サスペンション']['モジュール状態'].unique()
         rB = dfB[dfB['モジュール種類'] == '無線']['モジュール状態'].unique()
