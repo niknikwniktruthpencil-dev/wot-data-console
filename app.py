@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 import re
 import math
@@ -15,6 +16,26 @@ except ImportError:
 
 # ページ設定 (サイドバーを常に展開する設定)
 st.set_page_config(page_title="RECAT 総合データコンソール", layout="wide", initial_sidebar_state="expanded")
+
+# === スマホでのピンチズーム(拡大縮小)を強制的に許可するハック ===
+components.html(
+    """
+    <script>
+    try {
+        const meta = window.parent.document.querySelector('meta[name="viewport"]');
+        if(meta) {
+            meta.content = "width=device-width, initial-scale=1.0, maximum-scale=10.0, user-scalable=yes";
+        } else {
+            const newMeta = window.parent.document.createElement('meta');
+            newMeta.name = "viewport";
+            newMeta.content = "width=device-width, initial-scale=1.0, maximum-scale=10.0, user-scalable=yes";
+            window.parent.document.head.appendChild(newMeta);
+        }
+    } catch(e) {}
+    </script>
+    """,
+    height=0, width=0
+)
 
 # === セッションステートの初期化 ===
 PAGES = [
@@ -98,6 +119,11 @@ if logo_base64:
 # === CSS (完全ダークモード・すりガラスUI・モジュール全収め対応) ===
 css_string = f"""
 <style>
+/* スマホでの拡大縮小(ピンチ)を許可する基本設定 */
+html, body, .stApp {{
+    touch-action: auto !important;
+}}
+
 /* 全体背景の設定 */
 .stApp {{
     background-color: #0d1117 !important;
@@ -119,13 +145,13 @@ css_string = f"""
 }}
 
 /* =========================================================
-   ラジオボタンを公式の角丸パネルに完全偽装
+   ラジオボタンを公式の角丸パネルに完全偽装 (PC・共通設定)
    ========================================================= */
 div[data-testid="stRadio"] div[role="radiogroup"] {{
-    gap: 6px; /* パネル間の隙間 */
+    gap: 6px; 
 }}
 div[data-testid="stRadio"] div[role="radiogroup"] > label[data-baseweb="radio"] {{
-    background-color: rgba(30, 40, 50, 0.4) !important;
+    background-color: rgba(31, 41, 55, 0.7) !important;
     border: 1px solid rgba(255, 255, 255, 0.15) !important;
     border-radius: 6px !important;
     padding: 12px 6px !important;
@@ -243,27 +269,24 @@ div[data-testid="stButton"] button:hover {{ background-color: rgba(88, 166, 255,
     .off-val {{ font-size: 1.0em; }}
     .off-suf {{ font-size: 0.8em; }}
     
-    /* ======== スマホ版モジュールの「横並び全収め（絶対に押し出させない）」最強版 ======== */
+    /* ======== スマホ版モジュールの「横並び全収め」ガラス調完全版 ======== */
     /* コンテナが縦に並ぶのを強制的に阻止し、横に並べる */
     div[data-testid="stHorizontalBlock"]:has(.mod-header) {{
         display: flex !important;
         flex-direction: row !important;
         flex-wrap: nowrap !important;
-        overflow: hidden !important; /* スクロールを一切許さない */
+        overflow: hidden !important; 
         width: 100% !important;
         max-width: 100vw !important;
         gap: 2px !important;
         padding: 0 !important;
     }}
     
-    /* 中身の文字などが原因で枠が広がるのを全ブロック */
-    div[data-testid="stHorizontalBlock"]:has(.mod-header) * {{
-        min-width: 0 !important;
-    }}
-
-    /* 5つの列を均等に圧縮し、絶対に画面外にはみ出させない */
+    /* 5つの列を均等に圧縮 */
     div[data-testid="stHorizontalBlock"]:has(.mod-header) > div[data-testid="column"] {{
         width: 19% !important;
+        min-width: 0 !important;
+        max-width: 20% !important;
         flex: 1 1 0% !important;
         padding: 0 1px !important;
         margin: 0 !important;
@@ -287,7 +310,7 @@ div[data-testid="stButton"] button:hover {{ background-color: rgba(88, 166, 255,
         gap: 2px !important;
     }}
     
-    /* ラジオボタンのパネル自体を小さく圧縮 */
+    /* ★ラジオボタンのパネル：スマホでもしっかりガラス調と角丸を維持★ */
     div[data-testid="stHorizontalBlock"]:has(.mod-header) div[role="radiogroup"] > label {{
         width: 100% !important;
         min-height: 50px !important;
@@ -297,9 +320,20 @@ div[data-testid="stButton"] button:hover {{ background-color: rgba(88, 166, 255,
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
-        border-radius: 4px !important;
+        border-radius: 6px !important; /* 角丸復活 */
+        background-color: rgba(31, 41, 55, 0.7) !important; /* ガラス背景復活 */
+        border: 1px solid rgba(255, 255, 255, 0.15) !important; /* 白枠復活 */
+        backdrop-filter: blur(5px);
+        -webkit-backdrop-filter: blur(5px);
     }}
     
+    /* ★スマホ版 選択時のハイライト（水色発光枠）★ */
+    div[data-testid="stHorizontalBlock"]:has(.mod-header) div[role="radiogroup"] > label:has(input:checked) {{
+        background-color: rgba(88, 166, 255, 0.15) !important;
+        border: 1px solid #58a6ff !important;
+        box-shadow: 0 0 8px rgba(88,166,255,0.4);
+    }}
+
     /* パネル内の文字が長くても強制的に折り返し・縮小して収める */
     div[data-testid="stHorizontalBlock"]:has(.mod-header) div[role="radiogroup"] > label p {{
         font-size: 0.55em !important;
@@ -309,6 +343,11 @@ div[data-testid="stButton"] button:hover {{ background-color: rgba(88, 166, 255,
         line-height: 1.1 !important;
         margin: 0 !important;
         text-align: center !important;
+    }}
+    /* スマホ版 選択中のテキストを白く光らせる */
+    div[data-testid="stHorizontalBlock"]:has(.mod-header) div[role="radiogroup"] > label:has(input:checked) p {{
+        color: #ffffff !important;
+        font-weight: bold !important;
     }}
     /* ============================================================ */
 
@@ -841,6 +880,7 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
     radios = t_data[t_data['モジュール種類'] == '無線']['モジュール状態'].unique()
     
     with modules_container:
+        st.markdown("<div class='module-scroll-wrapper'></div>", unsafe_allow_html=True)
         mc1, mc2, mc3, mc4, mc5 = st.columns(5)
         with mc1:
             st.markdown("<div class='mod-header'>主砲</div>", unsafe_allow_html=True)
@@ -1021,6 +1061,7 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
 
     # === モジュール詳細の描画 ===
     with details_container:
+        st.markdown("<div class='module-scroll-wrapper'></div>", unsafe_allow_html=True)
         d1, d2, d3, d4, d5 = st.columns(5)
         
         with d1:
@@ -1130,7 +1171,7 @@ elif st.session_state['app_mode'] == "⚖️ 車輌比較":
         
         dfA = df[df['正確な車輌名'] == tankA]
         
-        st.markdown("<div class='module-scroll-wrapper'></div>", unsafe_allow_html=True) # 横並び一画面圧縮ハック
+        st.markdown("<div class='module-scroll-wrapper'></div>", unsafe_allow_html=True)
         ca1, ca2, ca3 = st.columns(3)
         gA = dfA[dfA['モジュール種類'] == '主砲']['モジュール状態'].unique()
         tA = dfA[dfA['モジュール種類'] == '砲塔']['モジュール状態'].unique()
@@ -1139,6 +1180,7 @@ elif st.session_state['app_mode'] == "⚖️ 車輌比較":
         s_turretA = ca2.selectbox("砲塔(A)", tA) if len(tA)>0 else None
         s_engineA = ca3.selectbox("エンジン(A)", eA) if len(eA)>0 else None
         
+        st.markdown("<div class='module-scroll-wrapper'></div>", unsafe_allow_html=True)
         ca4, ca5, _ = st.columns(3)
         suspA = dfA[dfA['モジュール種類'] == 'サスペンション']['モジュール状態'].unique()
         rA = dfA[dfA['モジュール種類'] == '無線']['モジュール状態'].unique()
@@ -1203,7 +1245,7 @@ elif st.session_state['app_mode'] == "⚖️ 車輌比較":
         
         dfB = df[df['正確な車輌名'] == tankB]
         
-        st.markdown("<div class='module-scroll-wrapper'></div>", unsafe_allow_html=True) # 横並び一画面圧縮ハック
+        st.markdown("<div class='module-scroll-wrapper'></div>", unsafe_allow_html=True)
         cb1, cb2, cb3 = st.columns(3)
         gB = dfB[dfB['モジュール種類'] == '主砲']['モジュール状態'].unique()
         tB = dfB[dfB['モジュール種類'] == '砲塔']['モジュール状態'].unique()
