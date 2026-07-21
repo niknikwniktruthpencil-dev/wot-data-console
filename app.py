@@ -13,8 +13,8 @@ try:
 except ImportError:
     HAS_IMG_COORD = False
 
-# ページ設定 (スマホ対応のため initial_sidebar_state を auto に変更)
-st.set_page_config(page_title="RECAT 総合データコンソール", layout="wide", initial_sidebar_state="auto")
+# ページ設定 (サイドバーを常に展開する設定に復旧)
+st.set_page_config(page_title="RECAT 総合データコンソール", layout="wide", initial_sidebar_state="expanded")
 
 # === セッションステートの初期化 ===
 PAGES = [
@@ -48,7 +48,7 @@ for potential_img in ["Screenshot 2026-07-17 23-00-25.jpg", "Screenshot 2026-07-
         SAMPLE_IMG_FILE = potential_img
         break
 
-# === ロゴのBase64エンコード (背景用) ===
+# === ロゴのBase64エンコード (背景・サイドバー用) ===
 def get_base64_of_bin_file(bin_file):
     if bin_file:
         full_path = os.path.join(base_dir, bin_file)
@@ -59,9 +59,10 @@ def get_base64_of_bin_file(bin_file):
     return None
 
 logo_base64 = get_base64_of_bin_file(LOGO_FILE)
+
+# 背景画像のCSS生成
 bg_css = ""
 if logo_base64:
-    # 背景にロゴを大きく配置し、暗い半透明のオーバーレイをかける
     bg_css = f"""
     background-image: linear-gradient(rgba(11, 15, 25, 0.88), rgba(11, 15, 25, 0.88)), url("data:image/png;base64,{logo_base64}");
     background-size: 50%;
@@ -78,7 +79,7 @@ css_string = f"""
     background-color: #0d1117 !important;
     {bg_css}
 }}
-[data-testid="stSidebar"] {{ background-color: rgba(26, 26, 26, 0.95) !important; border-right: 1px solid #333; backdrop-filter: blur(10px); }}
+[data-testid="stSidebar"] {{ background-color: rgba(26, 26, 26, 0.95) !important; border-right: 1px solid #333; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);}}
 .stApp, .stApp p, .stApp label, .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6, .stApp span {{ color: #e5e5e5 !important; }}
 
 /* 共通パネル (半透明すりガラス調) */
@@ -97,6 +98,7 @@ css_string = f"""
 .stRadio div[role="radiogroup"] > label {{
     background-color: rgba(31, 41, 55, 0.7) !important;
     backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
     border: 1px solid rgba(255, 255, 255, 0.15) !important;
     border-radius: 6px !important;
     padding: 12px 10px !important;
@@ -110,6 +112,9 @@ css_string = f"""
     background-color: rgba(88, 166, 255, 0.15) !important;
     box-shadow: 0 0 8px rgba(88,166,255,0.4);
 }}
+.stRadio div[role="radiogroup"] > label:hover {{
+    border-color: #8b949e !important;
+}}
 .stRadio div[role="radiogroup"] > label div[data-baseweb="radio"] {{ display: none !important; }}
 .stRadio div[role="radiogroup"] > label p {{ color: #e5e5e5 !important; font-size: 0.85em !important; font-weight: 500 !important; margin: 0 !important; text-align: center !important; line-height: 1.2 !important; }}
 .stRadio div[role="radiogroup"] > label:has(input:checked) p {{ color: #58a6ff !important; font-weight: bold !important; }}
@@ -117,7 +122,7 @@ css_string = f"""
 /* その他のUIパーツ */
 ul[role="listbox"], ul[role="listbox"] * {{ background-color: #1f1f1f !important; color: #ffffff !important; }}
 li[role="option"]:hover, li[role="option"]:focus, li[aria-selected="true"] {{ background-color: #333333 !important; color: #58a6ff !important; border-left: 3px solid #58a6ff; }}
-div[data-baseweb="select"] > div, input, div[data-testid="stButton"] button {{ background-color: rgba(31, 41, 55, 0.7) !important; color: #ffffff !important; border: 1px solid rgba(255,255,255,0.15) !important; border-radius: 6px !important; backdrop-filter: blur(5px); }}
+div[data-baseweb="select"] > div, input, div[data-testid="stButton"] button {{ background-color: rgba(31, 41, 55, 0.7) !important; color: #ffffff !important; border: 1px solid rgba(255,255,255,0.15) !important; border-radius: 6px !important; backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); }}
 div[data-testid="stButton"] button {{ color: #58a6ff !important; font-weight:bold; }}
 div[data-testid="stButton"] button:hover {{ background-color: rgba(88, 166, 255, 0.2) !important; border-color: #58a6ff !important; color: #ffffff !important; }}
 
@@ -145,7 +150,7 @@ div[data-testid="stButton"] button:hover {{ background-color: rgba(88, 166, 255,
 .panel-title {{ font-size: 1.2em !important; color: #e2e8f0 !important; margin-top: 25px; margin-bottom: 10px; border-bottom: 2px solid rgba(148,163,184,0.5) !important; padding-bottom: 8px; font-weight: 500; letter-spacing: 0.5px; }}
 
 /* 主要性能トップボード (半透明化) */
-.major-stat-box {{ background-color: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; padding: 15px; margin-bottom: 15px; backdrop-filter: blur(5px); }}
+.major-stat-box {{ background-color: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; padding: 15px; margin-bottom: 15px; backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);}}
 .major-stat-title {{ font-size: 0.9em; color: #a1a1aa; border-bottom: 1px solid rgba(55,65,81,0.5); padding-bottom: 3px; margin-bottom: 5px; }}
 .major-stat-value {{ font-size: 1.8em; font-weight: bold; color: #ffffff; line-height: 1.1; transition: color 0.3s; }}
 .major-stat-unit {{ font-size: 0.45em; color: #a1a1aa; font-weight: normal; }}
@@ -154,11 +159,11 @@ div[data-testid="stButton"] button:hover {{ background-color: rgba(88, 166, 255,
 .block-container {{ max-width: 1600px; padding-top: 1.5rem; }}
 
 /* 比較テーブル (半透明化) */
-.comp-table {{ width: 100%; border-collapse: separate; border-spacing: 0; margin-top: 10px; font-size: 0.95em; background-color: rgba(22, 27, 34, 0.65); backdrop-filter: blur(10px); border-radius: 8px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.1); }}
+.comp-table {{ width: 100%; border-collapse: separate; border-spacing: 0; margin-top: 10px; font-size: 0.95em; background-color: rgba(22, 27, 34, 0.65); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-radius: 8px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.1); }}
 .comp-table th {{ background-color: rgba(31, 41, 55, 0.8); padding: 12px; border-bottom: 2px solid #58a6ff; text-align: center; font-size: 1.0em; color: #ffffff !important; }}
 .comp-table td {{ padding: 10px 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); text-align: center; color: #e5e5e5 !important; }}
 .comp-label {{ text-align: left !important; color: #9ca3af !important; width: 28%; font-weight: 500; background-color: rgba(11, 15, 25, 0.5); }}
-.win-stat {{ color: #58a6ff !important; font-weight: bold; background-color: rgba(88, 166, 255, 0.15); }}
+.win-stat {{ color: #58a6ff !important; font-weight: bold; background-color: rgba(88, 166, 255, 0.15); text-shadow: 0 0 5px rgba(88,166,255,0.4); }}
 
 /* 装甲シミュレーター結果 */
 .armor-result {{ font-size: 3.5em !important; font-weight: 800 !important; color: #f87171 !important; text-align: center !important; margin-top: 10px !important; margin-bottom: 5px !important; line-height: 1.1 !important; display: block !important; text-shadow: 0 0 10px rgba(248,113,114,0.3); }}
@@ -185,7 +190,7 @@ div[data-testid="stButton"] button:hover {{ background-color: rgba(88, 166, 255,
     .comp-label {{ width: 35% !important; font-size: 0.85em !important; }}
     h1 {{ font-size: 1.4em !important; margin-top: -15px !important; }}
     .header-logo {{ width: 110px; margin-bottom: 10px; }}
-    div[data-testid="stExpander"] {{ background-color: rgba(31, 41, 55, 0.8) !important; border-radius: 8px !important; border: 1px solid rgba(255,255,255,0.1) !important; backdrop-filter: blur(5px); }}
+    div[data-testid="stExpander"] {{ background-color: rgba(31, 41, 55, 0.8) !important; border-radius: 8px !important; border: 1px solid rgba(255,255,255,0.1) !important; backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); }}
 }}
 </style>
 """
@@ -319,6 +324,16 @@ if df.empty:
 # ==========================================
 # 拡張シミュレーション & ユーティリティ
 # ==========================================
+def get_tank_image_base64(tank_name):
+    """ローカルのtanksフォルダから画像を読み込み、なければプレースホルダーを返す"""
+    safe_name = re.sub(r'[\\/*?:"<>|]', "", tank_name)
+    img_path = os.path.join(base_dir, "tanks", f"{safe_name}.png")
+    if os.path.exists(img_path):
+        with open(img_path, 'rb') as f:
+            data = f.read()
+        return f"data:image/png;base64,{base64.b64encode(data).decode()}"
+    return f"https://via.placeholder.com/800x400/1f2937/58a6ff?text={tank_name.replace(' ', '+')}"
+
 def sim_val(base_str, mult, is_int=False):
     if mult == 1.0: return base_str
     if pd.isna(base_str) or str(base_str).strip() == "-": return "-"
@@ -524,10 +539,34 @@ def comp_tr(label, valA, valB, higher_better=True, suffix=""):
     return f"<tr><td class='comp-label'>{label}</td><td class='{clsA}'>{dispA}</td><td class='{clsB}'>{dispB}</td></tr>"
 
 def render_html_zukan(label, value, suffix="", is_buffed=False):
-    """バフ適用時は青文字クラス（buffed-text）を付与して出力"""
+    """公式サイトのようなフラットリストレイアウト（左ラベル、右バリュー）を出力。バフ適用時は青文字化"""
     val_class = "buffed-text" if is_buffed else ""
     if value and str(value) != "-":
         st.markdown(f"<div class='off-row'><div class='off-label'>{label}</div><div class='off-val {val_class}'>{value} <span class='off-suf'>{suffix}</span></div></div>", unsafe_allow_html=True)
+
+
+# ==========================================
+# サイドバーとメインメニューの連携設定
+# ==========================================
+if logo_base64:
+     logo_html = f'<div style="text-align: center;"><img src="data:image/png;base64,{logo_base64}" class="sidebar-logo"></div>'
+else:
+     logo_html = ""
+
+st.sidebar.markdown(f"{logo_html}<h3 style='margin-top:0px; text-align:center;'>RECAT Console</h3>", unsafe_allow_html=True)
+    
+selected_mode = st.sidebar.radio(
+    "機能メニュー", 
+    PAGES, 
+    index=PAGES.index(st.session_state['app_mode'])
+)
+
+if selected_mode != st.session_state['app_mode']:
+    st.session_state['app_mode'] = selected_mode
+    st.rerun()
+
+st.sidebar.markdown("---")
+st.sidebar.info("💡 **Tips:** スマホ版は自動で公式アプリ風の最適化レイアウトに切り替わります。")
 
 
 # ==========================================
@@ -614,7 +653,7 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
     t_data = df[df['正確な車輌名'] == selected_tank]
     tank_type_zukan = t_data['タイプ'].iloc[0] if not t_data.empty else "-"
     
-    # 車輌画像の表示 (※要望により一時的に非表示)
+    # 車輌画像の表示 (※要望により一時的に非表示。後で復活させる場合はコメントアウトを外す)
     # img_b64 = get_tank_image_base64(selected_tank)
     # st.markdown(f"<div class='tank-image-container'><img src='{img_b64}' class='tank-image'></div>", unsafe_allow_html=True)
 
@@ -742,7 +781,6 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
     disp_mult /= crew_mult
     
     move_disp_mult = 1.0 / crew_mult
-    if apply_run_n_gun_zukan: move_disp_mult *= 0.90 # 行進間射撃復活
 
     # === 基本数値の取得と加工 ===
     sim_dpm = sim_val(get_val(t_data, s_gun, 'DPM(主砲)'), dpm_mult, is_int=True)
@@ -763,7 +801,7 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
     move_v, still_v = get_conceal_values(conceal, tank_type_zukan, apply_camo_zukan, apply_adv_camo_zukan, apply_camo_net_zukan, apply_camo_skill_zukan, apply_green_thumb_zukan, skill_mult)
     camo_fmt = f"{move_v}/{still_v}"
 
-    # === エコノミー・マッチメイキング情報 (正確なパース結果から取得) ===
+    # === エコノミー・マッチメイキング情報 ===
     silver_rate = str(t_data['シルバー獲得レート'].iloc[0]) if not t_data.empty else "-"
     exp_rate = str(t_data['EXP獲得レート'].iloc[0]) if not t_data.empty else "-"
     free_exp_rate = str(t_data['フリーEXPレート'].iloc[0]) if not t_data.empty else "-"
@@ -843,7 +881,7 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
             render_html_zukan("精度", sim_acc, "M", is_buffed=is_crew_buffed)
             
             sim_move_disp = sim_val(get_val(t_data, s_gun, '走行中の精度'), move_disp_mult)
-            render_html_zukan("走行中の精度", sim_move_disp, "M", is_buffed=(is_crew_buffed or apply_run_n_gun_zukan))
+            render_html_zukan("走行中の精度", sim_move_disp, "M", is_buffed=is_crew_buffed)
             
             render_html_zukan("砲塔旋回中精度", sim_disp, "M", is_buffed=(apply_vstab_zukan or apply_snap_shot_zukan or is_crew_buffed))
             render_html_zukan("俯角", get_val(t_data, s_gun, '俯角'), "度")
@@ -970,7 +1008,6 @@ elif st.session_state['app_mode'] == "⚖️ 車輌比較":
                 apply_camo_skill_A = st.checkbox("迷彩の専門知識", key="camo_skill_A")
                 apply_green_thumb_A = st.checkbox("隠蔽の達人(*茂み)", key="green_thumb_A")
                 apply_sit_aware_A = st.checkbox("状況判断力", key="sit_aware_A")
-                apply_run_n_gun_A = st.checkbox("行進間射撃", key="run_n_gun_A")
                 apply_snap_shot_A = st.checkbox("速射", key="snap_shot_A")
                 apply_rapid_aim_A = st.checkbox("迅速な照準", key="rapid_aim_A")
                 apply_clutch_braking_A = st.checkbox("クラッチの名手", key="clutch_braking_A")
@@ -1016,7 +1053,7 @@ elif st.session_state['app_mode'] == "⚖️ 車輌比較":
             
             c_b1, c_b2, c_b3, c_b4 = st.columns(4)
             with c_b1:
-                st.markdown("<span style='color:#58a6ff; font-size:0.9em; font-weight:bold;'>⚙️ パーツ (火力/機動)</span>", unsafe_allow_html=True)
+                st.markdown("<span style='color:#58a6ff; font-weight:bold; margin-bottom:8px;'>⚙️ パーツ (火力/機動)</span>", unsafe_allow_html=True)
                 apply_rammer_B = st.checkbox("装填棒(-7.5%)", key="rammer_B")
                 apply_vstab_B = st.checkbox("安定装置(+20%)", key="vstab_B")
                 apply_gld_B = st.checkbox("射撃装置(-10%)", key="gld_B")
@@ -1024,25 +1061,24 @@ elif st.session_state['app_mode'] == "⚖️ 車輌比較":
                 apply_grouser_B = st.checkbox("グローサー(+7.5%)", key="grouser_B")
                 apply_turbo_B = st.checkbox("ターボ(+5%)", key="turbo_B")
             with c_b2:
-                st.markdown("<span style='color:#58a6ff; font-size:0.9em; font-weight:bold;'>⚙️ パーツ (視認/隠蔽)</span>", unsafe_allow_html=True)
+                st.markdown("<span style='color:#58a6ff; font-weight:bold; margin-bottom:8px;'>⚙️ パーツ (視認/隠蔽)</span>", unsafe_allow_html=True)
                 apply_optics_B = st.checkbox("薄膜レンズ", key="optics_B")
                 apply_binocs_B = st.checkbox("双眼鏡(*静止)", key="binocs_B")
                 apply_adv_camo_B = st.checkbox("改良型迷彩", key="adv_B")
                 apply_camo_net_B = st.checkbox("迷彩ネット(*静止)", key="net_B")
             with c_b3:
-                st.markdown("<span style='color:#58a6ff; font-size:0.9em; font-weight:bold;'>🎨 外観/消耗品</span>", unsafe_allow_html=True)
+                st.markdown("<span style='color:#58a6ff; font-weight:bold; margin-bottom:8px;'>🎨 外観/消耗品</span>", unsafe_allow_html=True)
                 apply_camo_B = st.checkbox("迷彩塗装", key="camo_B")
                 apply_food_p_B = st.checkbox("食料(常時)", key="food_p_B")
                 apply_food_a_B = st.checkbox("食料(使用)", key="food_a_B")
                 apply_fuel_p_B = st.checkbox("燃料(常時)", key="fuel_p_B")
                 apply_fuel_a_B = st.checkbox("燃料(使用)", key="fuel_a_B")
             with c_b4:
-                st.markdown("<span style='color:#58a6ff; font-size:0.9em; font-weight:bold;'>👤 スキル</span>", unsafe_allow_html=True)
+                st.markdown("<span style='color:#58a6ff; font-weight:bold; margin-bottom:8px;'>👤 スキル</span>", unsafe_allow_html=True)
                 apply_born_leader_B = st.checkbox("天性のリーダー", key="born_leader_B")
                 apply_camo_skill_B = st.checkbox("迷彩の専門知識", key="camo_skill_B")
                 apply_green_thumb_B = st.checkbox("隠蔽の達人(*茂み)", key="green_thumb_B")
                 apply_sit_aware_B = st.checkbox("状況判断力", key="sit_aware_B")
-                apply_run_n_gun_B = st.checkbox("行進間射撃", key="run_n_gun_B")
                 apply_snap_shot_B = st.checkbox("速射", key="snap_shot_B")
                 apply_rapid_aim_B = st.checkbox("迅速な照準", key="rapid_aim_B")
                 apply_clutch_braking_B = st.checkbox("クラッチの名手", key="clutch_braking_B")
@@ -1092,9 +1128,7 @@ elif st.session_state['app_mode'] == "⚖️ 車輌比較":
     html += comp_tr("精度", sim_val(get_val(dfA, s_gunA, '精度(m)'), acc_mult_A), sim_val(get_val(dfB, s_gunB, '精度(m)'), acc_mult_B), False, "m")
     
     move_disp_mult_A = 1.0 / crew_mult_A
-    if apply_run_n_gun_A: move_disp_mult_A *= 0.90
     move_disp_mult_B = 1.0 / crew_mult_B
-    if apply_run_n_gun_B: move_disp_mult_B *= 0.90
     html += comp_tr("走行中の精度 (移動時)", sim_val(get_val(dfA, s_gunA, '走行中の精度'), move_disp_mult_A), sim_val(get_val(dfB, s_gunB, '走行中の精度'), move_disp_mult_B), False, "m")
     
     rof_mult_A = 1.0 * crew_mult_A
