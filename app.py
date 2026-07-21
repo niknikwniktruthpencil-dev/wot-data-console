@@ -241,22 +241,25 @@ div[data-testid="stButton"] button:hover {{ background-color: rgba(88, 166, 255,
     .off-val {{ font-size: 1.0em; }}
     .off-suf {{ font-size: 0.8em; }}
     
-    /* ======== スマホ版モジュールの「横並び全収め」完全版 ======== */
+    /* ======== スマホ版モジュールの「横並び全収め（絶対に押し出させない）」最強版 ======== */
+    /* コンテナが縦に並ぶのを強制的に阻止し、横に並べる */
     div[data-testid="stHorizontalBlock"]:has(.mod-header) {{
+        display: flex !important;
         flex-direction: row !important;
         flex-wrap: nowrap !important;
-        overflow-x: hidden !important; /* スクロールさせず1画面に収める */
-        padding-bottom: 5px !important;
-        gap: 2px !important; /* 隙間を極力狭く */
+        overflow-x: visible !important;
+        width: 100% !important;
+        gap: 2px !important;
     }}
-    /* 各カラムの幅を柔軟に圧縮（5等分） */
+    /* 5つの列を均等に圧縮し、画面外にはみ出させない */
     div[data-testid="stHorizontalBlock"]:has(.mod-header) > div[data-testid="column"] {{
+        width: 19% !important;
         min-width: 0 !important;
-        width: 20% !important;
+        max-width: 20% !important;
         flex: 1 1 0 !important;
         padding: 0 1px !important;
     }}
-    /* スマホ版モジュールヘッダー文字調整 */
+    /* スマホ版モジュールヘッダー（主砲、砲塔など）を小さく */
     .mod-header {{
         font-size: 0.6em !important;
         white-space: nowrap;
@@ -265,24 +268,39 @@ div[data-testid="stButton"] button:hover {{ background-color: rgba(88, 166, 255,
         padding-bottom: 2px !important;
         margin-bottom: 4px !important;
         text-align: center;
+        width: 100% !important;
     }}
-    /* スマホ版ラジオボタン内の文字を小さくして収める */
+    /* ラジオボタンの外枠も強制的に縮小 */
+    div[data-testid="stHorizontalBlock"]:has(.mod-header) div[data-testid="stRadio"] {{
+        width: 100% !important;
+        min-width: 0 !important;
+    }}
+    /* ラジオボタンのパネル自体を小さく */
+    div[data-testid="stHorizontalBlock"]:has(.mod-header) div[data-testid="stRadio"] div[role="radiogroup"] > label {{
+        min-height: 45px !important;
+        height: auto !important;
+        padding: 4px 1px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        margin-bottom: 4px !important;
+        width: 100% !important;
+        min-width: 0 !important;
+    }}
+    /* パネル内の文字が長くても強制的に折り返し・縮小 */
     div[data-testid="stHorizontalBlock"]:has(.mod-header) div[data-testid="stRadio"] div[role="radiogroup"] > label p {{
         font-size: 0.55em !important;
         word-break: break-all !important;
         white-space: normal !important;
         line-height: 1.1 !important;
-    }}
-    div[data-testid="stHorizontalBlock"]:has(.mod-header) div[data-testid="stRadio"] div[role="radiogroup"] > label {{
-        min-height: 45px !important;
-        padding: 4px 2px !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        margin-bottom: 4px !important;
+        width: 100% !important;
+        margin: 0 !important;
+        text-align: center !important;
     }}
     div[data-testid="stHorizontalBlock"]:has(.mod-header) div[data-testid="stRadio"] div[role="radiogroup"] {{
         gap: 2px !important;
+        width: 100% !important;
+        min-width: 0 !important;
     }}
     /* ============================================================ */
 
@@ -298,14 +316,14 @@ div[data-testid="stButton"] button:hover {{ background-color: rgba(88, 166, 255,
     h1 {{ font-size: 1.4em !important; margin-top: -15px !important; }}
     div[data-testid="stExpander"] {{ background-color: rgba(31, 41, 55, 0.8) !important; border-radius: 8px !important; border: 1px solid rgba(255,255,255,0.1) !important; backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); }}
     
-    /* ホーム画面スマホ最適化（キャラ縦積みを防ぎ、横並びを維持） */
+    /* ======== ホーム画面スマホ最適化（キャラ縦積みを防ぐ） ======== */
     .home-hero-container {{
-        flex-direction: row !important; /* 強制的に横並び */
+        flex-direction: row !important; /* スマホでも強制的に横並び */
         padding: 5px 0 !important;
         margin-bottom: 20px !important;
     }}
     .home-char-left {{
-        max-height: 100px !important; /* スマホ画面に収まるサイズに縮小 */
+        max-height: 100px !important; /* 画面に収まるように縮小 */
         transform: scaleX(-1);
         margin-bottom: 0 !important;
     }}
@@ -314,8 +332,12 @@ div[data-testid="stButton"] button:hover {{ background-color: rgba(88, 166, 255,
         margin-top: 0 !important;
     }}
     .home-char-wrapper {{
-        margin-right: -10px !important; /* スマホ用のネガティブマージン */
+        margin-right: -10px !important; /* スマホ用の密着マージン */
         margin-left: -10px !important;
+        min-width: 0 !important;
+    }}
+    .home-text-wrapper {{
+        min-width: 0 !important;
     }}
     .home-top-logo {{
         width: 50px !important;
@@ -706,7 +728,7 @@ if st.session_state['app_mode'] == "🏠 ホーム (メインメニュー)":
     top_logo_html = f'<img src="data:image/png;base64,{logo_base64}" class="home-top-logo" style="margin: 0 auto 10px auto; display: block; filter: drop-shadow(0px 0px 8px rgba(255,255,255,0.4));">' if logo_base64 else ''
 
     st.markdown(f"""
-    <div class="home-hero-container" style="display: flex; justify-content: center; align-items: center; flex-wrap: nowrap; margin-bottom: 40px; padding: 20px 0; max-width: 950px; margin-left: auto; margin-right: auto;">
+    <div class="home-hero-container" style="display: flex; flex-direction: row; justify-content: center; align-items: center; flex-wrap: nowrap; margin-bottom: 40px; padding: 20px 0; max-width: 950px; margin-left: auto; margin-right: auto;">
         <div class="home-char-wrapper" style="flex: 0 0 auto; margin-right: -30px; z-index: 2;">{char1_html}</div>
         <div class="home-text-wrapper" style="flex: 1 1 auto; text-align: center; padding: 0 10px; z-index: 1;">
             {top_logo_html}
@@ -1107,6 +1129,7 @@ elif st.session_state['app_mode'] == "⚖️ 車輌比較":
         s_gunA = ca1.selectbox("主砲(A)", gA) if len(gA)>0 else None
         s_turretA = ca2.selectbox("砲塔(A)", tA) if len(tA)>0 else None
         s_engineA = ca3.selectbox("エンジン(A)", eA) if len(eA)>0 else None
+        
         ca4, ca5, _ = st.columns(3)
         suspA = dfA[dfA['モジュール種類'] == 'サスペンション']['モジュール状態'].unique()
         rA = dfA[dfA['モジュール種類'] == '無線']['モジュール状態'].unique()
@@ -1178,6 +1201,7 @@ elif st.session_state['app_mode'] == "⚖️ 車輌比較":
         s_gunB = cb1.selectbox("主砲(B)", gB) if len(gB)>0 else None
         s_turretB = cb2.selectbox("砲塔(B)", tB) if len(tB)>0 else None
         s_engineB = cb3.selectbox("エンジン(B)", eB) if len(eB)>0 else None
+        
         cb4, cb5, _ = st.columns(3)
         suspB = dfB[dfB['モジュール種類'] == 'サスペンション']['モジュール状態'].unique()
         rB = dfB[dfB['モジュール種類'] == '無線']['モジュール状態'].unique()
