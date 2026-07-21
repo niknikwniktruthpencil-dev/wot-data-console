@@ -265,29 +265,22 @@ div[data-testid="stButton"] button:hover {{ background-color: rgba(88, 166, 255,
     .off-val {{ font-size: 1.0em; }}
     .off-suf {{ font-size: 0.8em; }}
     
-    /* ======== スマホ版モジュールの「横並び全収め（絶対に押し出させない）」最強版 ======== */
-    /* コンテナが縦に並ぶのを強制的に阻止し、横に並べる */
-    div[data-testid="stHorizontalBlock"]:has(.mod-header) {{
-        display: flex !important;
-        flex-direction: row !important;
-        flex-wrap: nowrap !important;
-        overflow-x: visible !important;
+    /* ======== スマホ版モジュールの「完全強制・5等分グリッド」ハック ======== */
+    /* Flexboxの押し出しを無効化し、数学的に画面を5つに割る CSS Grid を使用 */
+    .mobile-grid-anchor + div[data-testid="stHorizontalBlock"] {{
+        display: grid !important;
+        grid-template-columns: repeat(5, 1fr) !important;
+        gap: 4px !important;
         width: 100% !important;
-        gap: 2px !important;
-        padding: 0 !important;
-        margin-left: -4px !important;
-        margin-right: -4px !important;
+        max-width: 100vw !important;
+        overflow: hidden !important;
     }}
     
-    /* 5つの列を均等に圧縮し、画面外にはみ出させない */
-    div[data-testid="stHorizontalBlock"]:has(.mod-header) > div[data-testid="column"] {{
-        flex: 0 0 19% !important; /* 強制的に約1/5の幅に固定 */
-        width: 19% !important;
-        min-width: 19% !important;
-        max-width: 19% !important;
-        padding: 0 1px !important;
+    .mobile-grid-anchor + div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {{
+        width: auto !important;
+        min-width: 0 !important;
+        padding: 0 !important;
         margin: 0 !important;
-        overflow: hidden !important;
     }}
     
     /* スマホ版モジュールヘッダー文字調整 */
@@ -301,36 +294,21 @@ div[data-testid="stButton"] button:hover {{ background-color: rgba(88, 166, 255,
         text-align: center !important;
     }}
     
-    /* ラジオボタンの外枠も強制的に縮小 */
-    div[data-testid="stHorizontalBlock"]:has(.mod-header) div[data-testid="stRadio"],
-    div[data-testid="stHorizontalBlock"]:has(.mod-header) div[role="radiogroup"] {{
-        width: 100% !important;
-        min-width: 0 !important;
-    }}
-    
-    /* ラジオボタン枠をスマホでさらにコンパクトに */
+    /* ラジオボタン枠の調整 */
     .stRadio div[role="radiogroup"] > label {{
+        padding: 6px 2px !important;
         min-height: 48px !important;
-        height: auto !important;
-        padding: 4px 2px !important;
-        margin-bottom: 4px !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        width: 100% !important;
-        min-width: 0 !important;
+        height: 100% !important;
     }}
     
     /* 文字が枠を押し広げようとするのを完全に無力化 */
     .stRadio div[role="radiogroup"] > label p {{
         font-size: 0.55rem !important;
-        white-space: normal !important; /* テキストの折り返しを強制 */
+        white-space: pre-wrap !important; /* テキストの折り返しを強制 */
         word-break: break-all !important;
         overflow-wrap: anywhere !important;
-        line-height: 1.05 !important;
-        margin: 0 !important;
+        line-height: 1.1 !important;
         text-align: center !important;
-        width: 100% !important;
     }}
     /* ============================================================ */
 
@@ -487,6 +465,7 @@ def load_and_parse_data():
     df['搭乗員EXPレート'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'搭乗員\s*EXP\s*レート[^\d]*(\d+)', x))
     df['最大TIER'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'最大\s*TIER[^\dIVX]*([IVX\d]+)', x))
 
+    # ★ここでランキング用の数値を計算してDataFrameに追加しておく（KeyError防止）★
     def get_split_val(val_str, idx):
         if pd.isna(val_str) or val_str == "-": return 0
         parts = str(val_str).split('/')
@@ -498,11 +477,15 @@ def load_and_parse_data():
 
     df['Rank_DPM_Main'] = df['DPM(主砲)'].apply(lambda x: get_split_val(x, 0))
     df['Rank_Pen_Std'] = df['貫通力100m(主砲)'].apply(lambda x: get_split_val(x, 0))
+    df['Rank_Pen_Gold'] = df['貫通力100m(主砲)'].apply(lambda x: get_split_val(x, 1))
     df['Rank_Dmg_Std'] = df['ダメージ(主砲)'].apply(lambda x: get_split_val(x, 0))
+    df['Rank_Dmg_HE'] = df['ダメージ(主砲)'].apply(lambda x: get_split_val(x, 2))
     df['Rank_HP'] = df['HP'].apply(lambda x: get_split_val(x, 0))
     df['Rank_Speed'] = df['最大前進速度'].apply(lambda x: get_split_val(x, 0))
     df['Rank_Conceal_Move'] = df['発見可能範囲'].apply(lambda x: get_split_val(x, 0))
+    df['Rank_Conceal_Still'] = df['発見可能範囲'].apply(lambda x: get_split_val(x, 1))
     df['Rank_Vision'] = df['視認範囲(m)'].apply(lambda x: get_split_val(x, 0))
+    
     return df
 
 df = load_and_parse_data()
@@ -863,7 +846,7 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
     radios = t_data[t_data['モジュール種類'] == '無線']['モジュール状態'].unique()
     
     with modules_container:
-        st.markdown("<div class='mod-header'></div>", unsafe_allow_html=True) # ここをトリガーにしてレイアウトを圧縮
+        st.markdown("<div class='mobile-grid-anchor'></div>", unsafe_allow_html=True)
         mc1, mc2, mc3, mc4, mc5 = st.columns(5)
         with mc1:
             st.markdown("<div class='mod-header'>主砲</div>", unsafe_allow_html=True)
@@ -1044,7 +1027,7 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
 
     # === モジュール詳細の描画 ===
     with details_container:
-        st.markdown("<div class='mod-header'></div>", unsafe_allow_html=True)
+        st.markdown("<div class='mobile-grid-anchor'></div>", unsafe_allow_html=True)
         d1, d2, d3, d4, d5 = st.columns(5)
         
         with d1:
@@ -1154,7 +1137,7 @@ elif st.session_state['app_mode'] == "⚖️ 車輌比較":
         
         dfA = df[df['正確な車輌名'] == tankA]
         
-        st.markdown("<div class='mod-header'></div>", unsafe_allow_html=True)
+        st.markdown("<div class='mobile-grid-anchor'></div>", unsafe_allow_html=True)
         ca1, ca2, ca3 = st.columns(3)
         gA = dfA[dfA['モジュール種類'] == '主砲']['モジュール状態'].unique()
         tA = dfA[dfA['モジュール種類'] == '砲塔']['モジュール状態'].unique()
@@ -1163,7 +1146,7 @@ elif st.session_state['app_mode'] == "⚖️ 車輌比較":
         s_turretA = ca2.selectbox("砲塔(A)", tA) if len(tA)>0 else None
         s_engineA = ca3.selectbox("エンジン(A)", eA) if len(eA)>0 else None
         
-        st.markdown("<div class='mod-header'></div>", unsafe_allow_html=True)
+        st.markdown("<div class='mobile-grid-anchor'></div>", unsafe_allow_html=True)
         ca4, ca5, _ = st.columns(3)
         suspA = dfA[dfA['モジュール種類'] == 'サスペンション']['モジュール状態'].unique()
         rA = dfA[dfA['モジュール種類'] == '無線']['モジュール状態'].unique()
@@ -1228,7 +1211,7 @@ elif st.session_state['app_mode'] == "⚖️ 車輌比較":
         
         dfB = df[df['正確な車輌名'] == tankB]
         
-        st.markdown("<div class='mod-header'></div>", unsafe_allow_html=True)
+        st.markdown("<div class='mobile-grid-anchor'></div>", unsafe_allow_html=True)
         cb1, cb2, cb3 = st.columns(3)
         gB = dfB[dfB['モジュール種類'] == '主砲']['モジュール状態'].unique()
         tB = dfB[dfB['モジュール種類'] == '砲塔']['モジュール状態'].unique()
@@ -1237,7 +1220,7 @@ elif st.session_state['app_mode'] == "⚖️ 車輌比較":
         s_turretB = cb2.selectbox("砲塔(B)", tB) if len(tB)>0 else None
         s_engineB = cb3.selectbox("エンジン(B)", eB) if len(eB)>0 else None
         
-        st.markdown("<div class='mod-header'></div>", unsafe_allow_html=True)
+        st.markdown("<div class='mobile-grid-anchor'></div>", unsafe_allow_html=True)
         cb4, cb5, _ = st.columns(3)
         suspB = dfB[dfB['モジュール種類'] == 'サスペンション']['モジュール状態'].unique()
         rB = dfB[dfB['モジュール種類'] == '無線']['モジュール状態'].unique()
