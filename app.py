@@ -13,7 +13,7 @@ try:
 except ImportError:
     HAS_IMG_COORD = False
 
-# ページ設定 (サイドバーを常に展開する設定に復旧)
+# ページ設定 (サイドバーを常に展開する設定)
 st.set_page_config(page_title="RECAT 総合データコンソール", layout="wide", initial_sidebar_state="expanded")
 
 # === セッションステートの初期化 ===
@@ -48,7 +48,7 @@ for potential_img in ["Screenshot 2026-07-17 23-00-25.jpg", "Screenshot 2026-07-
         SAMPLE_IMG_FILE = potential_img
         break
 
-# === キャラクター画像の自動解決（大文字小文字・名前の揺れに対応） ===
+# === キャラクター画像の自動解決 ===
 CHAR1_FILE = None
 for f in ["1.png", "1.jpg", "1.jpeg", "1-Photoroom.png", "1-Photoroom.jpg", "1.PNG", "1.JPG"]:
     if os.path.exists(os.path.join(base_dir, f)):
@@ -72,7 +72,7 @@ def get_base64_of_bin_file(bin_file):
     return None
 
 def get_character_img_html(filename, max_height_pc, img_class=""):
-    """キャラクター画像のHTMLタグを生成（拡張子自動判別・エラー回避強化）"""
+    """キャラクター画像のHTMLタグを生成"""
     if not filename:
         return ""
     b64 = get_base64_of_bin_file(filename)
@@ -95,7 +95,7 @@ if logo_base64:
     background-attachment: fixed;
     """
 
-# === CSS (完全ダークモード・すりガラスUI・バフ青文字対応) ===
+# === CSS (完全ダークモード・すりガラスUI・横スクロール対応) ===
 css_string = f"""
 <style>
 /* 全体背景の設定 */
@@ -189,21 +189,37 @@ div[data-testid="stButton"] button:hover {{ background-color: rgba(88, 166, 255,
 .comp-label {{ text-align: left !important; color: #9ca3af !important; width: 28%; font-weight: 500; background-color: rgba(11, 15, 25, 0.5); }}
 .win-stat {{ color: #58a6ff !important; font-weight: bold; background-color: rgba(88, 166, 255, 0.15); text-shadow: 0 0 5px rgba(88,166,255,0.4); }}
 
-/* 装甲シミュレーター結果 */
-.armor-result {{ font-size: 3.5em !important; font-weight: 800 !important; color: #f87171 !important; text-align: center !important; margin-top: 10px !important; margin-bottom: 5px !important; line-height: 1.1 !important; display: block !important; text-shadow: 0 0 10px rgba(248,113,114,0.3); }}
-.armor-result-bounce {{ font-size: 2.8em !important; font-weight: 800 !important; color: #9ca3af !important; text-align: center !important; margin-top: 10px !important; margin-bottom: 5px !important; display: block !important;}}
-
 /* 画像表示コンテナ */
 .tank-image-container {{ text-align: center; margin-bottom: 10px; padding: 10px; }}
 .tank-image {{ max-width: 100%; max-height: 250px; object-fit: contain; filter: drop-shadow(0px 10px 15px rgba(0,0,0,0.8)); }}
-.header-logo {{ width: 140px; height: auto; display: block; margin: 0 auto 15px auto; }}
 .sidebar-logo {{ width: 110px; height: auto; display: block; margin: 0 auto 10px auto; }}
 
 /* キャラクター反転用クラス */
 .home-char-left {{ transform: scaleX(-1); }}
 
-/* === スマホ向け専用レイアウト（画面幅768px以下） === */
+/* ★ モバイル用の横スクロール化（対象クラスを持つ要素の兄弟コンテナ） ★ */
 @media (max-width: 768px) {{
+    .mobile-horizontal-scroll {{ display: none; }}
+    
+    div[data-testid="stVerticalBlock"]:has(.mobile-horizontal-scroll) > div[data-testid="stHorizontalBlock"] {{
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        padding-bottom: 15px;
+        -webkit-overflow-scrolling: touch;
+    }}
+    div[data-testid="stVerticalBlock"]:has(.mobile-horizontal-scroll) > div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {{
+        min-width: 170px !important;
+        width: 170px !important;
+        flex: 0 0 auto !important;
+    }}
+    
+    /* モバイル・スクロールバーのデザイン */
+    div[data-testid="stVerticalBlock"]:has(.mobile-horizontal-scroll) > div[data-testid="stHorizontalBlock"]::-webkit-scrollbar {{ height: 8px; }}
+    div[data-testid="stVerticalBlock"]:has(.mobile-horizontal-scroll) > div[data-testid="stHorizontalBlock"]::-webkit-scrollbar-thumb {{ background-color: #58a6ff; border-radius: 4px; }}
+    div[data-testid="stVerticalBlock"]:has(.mobile-horizontal-scroll) > div[data-testid="stHorizontalBlock"]::-webkit-scrollbar-track {{ background-color: rgba(255,255,255,0.05); border-radius: 4px; }}
+
     .block-container {{ padding-left: 10px !important; padding-right: 10px !important; padding-top: 1rem !important; }}
     .panel-box {{ padding: 15px !important; margin-bottom: 20px !important; }}
     .tank-image {{ max-height: 180px; }}
@@ -216,14 +232,12 @@ div[data-testid="stButton"] button:hover {{ background-color: rgba(88, 166, 255,
     .comp-table th {{ padding: 8px 4px !important; font-size: 0.9em !important; }}
     .comp-table td {{ padding: 8px 4px !important; }}
     .comp-label {{ width: 35% !important; font-size: 0.85em !important; }}
-    .armor-result {{ font-size: 2.8em !important; }}
-    .armor-result-bounce {{ font-size: 2.2em !important; }}
     h1 {{ font-size: 1.4em !important; margin-top: -15px !important; }}
-    .header-logo {{ width: 110px; margin-bottom: 10px; }}
     div[data-testid="stExpander"] {{ background-color: rgba(31, 41, 55, 0.8) !important; border-radius: 8px !important; border: 1px solid rgba(255,255,255,0.1) !important; backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); }}
     
     /* ホーム画面スマホ最適化 */
     .home-hero-container {{ flex-direction: column !important; }}
+    .home-char-wrapper {{ margin: 0 !important; }}
     .home-char-left {{ max-height: 160px !important; margin-bottom: 10px; transform: scaleX(-1); }}
     .home-char-right {{ max-height: 180px !important; margin-top: 10px; }}
 }}
@@ -599,20 +613,21 @@ st.sidebar.caption("⚠️ **注記:** 公式サイトの車両情報を元に�
 # ==========================================
 if st.session_state['app_mode'] == "🏠 ホーム (メインメニュー)":
     
-    # 看板キャラクターとタイトルの配置（Flexboxレイアウト）
+    # 左右キャラクターを中心（タイトル側）に寄せるため、余白と幅を調整
     char1_html = get_character_img_html(CHAR1_FILE, 260, "home-char-left") if CHAR1_FILE else ""
     char2_html = get_character_img_html(CHAR2_FILE, 300, "home-char-right") if CHAR2_FILE else ""
     top_logo_html = f'<img src="data:image/png;base64,{logo_base64}" style="width: 90px; margin: 0 auto 10px auto; display: block; filter: drop-shadow(0px 0px 8px rgba(255,255,255,0.4));">' if logo_base64 else ''
 
+    # max-widthを絞り、キャラクターのコンテナにネガティブマージンをかけて中央に密着させる
     st.markdown(f"""
-    <div class="home-hero-container" style="display: flex; justify-content: center; align-items: center; flex-wrap: nowrap; margin-bottom: 40px; padding: 20px 0;">
-        <div style="flex: 0 1 auto;">{char1_html}</div>
-        <div style="flex: 1 1 auto; text-align: center; padding: 0 20px;">
+    <div class="home-hero-container" style="display: flex; justify-content: center; align-items: center; flex-wrap: nowrap; margin-bottom: 40px; padding: 20px 0; max-width: 950px; margin-left: auto; margin-right: auto;">
+        <div class="home-char-wrapper" style="flex: 0 0 auto; margin-right: -30px; z-index: 2;">{char1_html}</div>
+        <div class="home-text-wrapper" style="flex: 1 1 auto; text-align: center; padding: 0 10px; z-index: 1;">
             {top_logo_html}
             <h1 style='color: #ffffff !important; margin: 0; font-size: 2.5em; text-shadow: 0 0 15px rgba(0,0,0,0.8);'>RECAT 総合データコンソール</h1>
             <p style='color: #8b949e !important; margin-top: 8px; font-size: 1.1em;'>World of Tanks: Modern Armor 専用アナリティクスツール</p>
         </div>
-        <div style="flex: 0 1 auto;">{char2_html}</div>
+        <div class="home-char-wrapper" style="flex: 0 0 auto; margin-left: -30px; z-index: 2;">{char2_html}</div>
     </div>
     <hr style="border-color: rgba(255,255,255,0.1); margin-bottom: 30px;">
     """, unsafe_allow_html=True)
@@ -689,7 +704,7 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
     t_data = df[df['正確な車輌名'] == selected_tank]
     tank_type_zukan = t_data['タイプ'].iloc[0] if not t_data.empty else "-"
 
-    # === UIコンテナの定義（描画順の制御） ===
+    # === UIコンテナの定義 ===
     major_stats_placeholder = st.container()
     st.markdown("<div class='panel-box'>", unsafe_allow_html=True)
     st.markdown("<div class='panel-title' style='margin-top:0;'>モジュールのカスタマイズ</div>", unsafe_allow_html=True)
@@ -710,6 +725,7 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
     radios = t_data[t_data['モジュール種類'] == '無線']['モジュール状態'].unique()
     
     with modules_container:
+        st.markdown("<div class='mobile-horizontal-scroll'></div>", unsafe_allow_html=True) # 横スクロール化ハック
         mc1, mc2, mc3, mc4, mc5 = st.columns(5)
         with mc1:
             st.markdown("<div class='mod-header'>主砲</div>", unsafe_allow_html=True)
@@ -890,6 +906,7 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
 
     # === モジュール詳細の描画 ===
     with details_container:
+        st.markdown("<div class='mobile-horizontal-scroll'></div>", unsafe_allow_html=True) # 横スクロール化ハック
         d1, d2, d3, d4, d5 = st.columns(5)
         
         with d1:
@@ -999,6 +1016,7 @@ elif st.session_state['app_mode'] == "⚖️ 車輌比較":
         
         dfA = df[df['正確な車輌名'] == tankA]
         
+        st.markdown("<div class='mobile-horizontal-scroll'></div>", unsafe_allow_html=True) # 横スクロール化ハック
         ca1, ca2, ca3 = st.columns(3)
         gA = dfA[dfA['モジュール種類'] == '主砲']['モジュール状態'].unique()
         tA = dfA[dfA['モジュール種類'] == '砲塔']['モジュール状態'].unique()
@@ -1006,6 +1024,8 @@ elif st.session_state['app_mode'] == "⚖️ 車輌比較":
         s_gunA = ca1.selectbox("主砲(A)", gA) if len(gA)>0 else None
         s_turretA = ca2.selectbox("砲塔(A)", tA) if len(tA)>0 else None
         s_engineA = ca3.selectbox("エンジン(A)", eA) if len(eA)>0 else None
+        
+        st.markdown("<div class='mobile-horizontal-scroll'></div>", unsafe_allow_html=True) # 横スクロール化ハック
         ca4, ca5, _ = st.columns(3)
         suspA = dfA[dfA['モジュール種類'] == 'サスペンション']['モジュール状態'].unique()
         rA = dfA[dfA['モジュール種類'] == '無線']['モジュール状態'].unique()
@@ -1070,6 +1090,7 @@ elif st.session_state['app_mode'] == "⚖️ 車輌比較":
         
         dfB = df[df['正確な車輌名'] == tankB]
         
+        st.markdown("<div class='mobile-horizontal-scroll'></div>", unsafe_allow_html=True) # 横スクロール化ハック
         cb1, cb2, cb3 = st.columns(3)
         gB = dfB[dfB['モジュール種類'] == '主砲']['モジュール状態'].unique()
         tB = dfB[dfB['モジュール種類'] == '砲塔']['モジュール状態'].unique()
@@ -1077,6 +1098,8 @@ elif st.session_state['app_mode'] == "⚖️ 車輌比較":
         s_gunB = cb1.selectbox("主砲(B)", gB) if len(gB)>0 else None
         s_turretB = cb2.selectbox("砲塔(B)", tB) if len(tB)>0 else None
         s_engineB = cb3.selectbox("エンジン(B)", eB) if len(eB)>0 else None
+        
+        st.markdown("<div class='mobile-horizontal-scroll'></div>", unsafe_allow_html=True) # 横スクロール化ハック
         cb4, cb5, _ = st.columns(3)
         suspB = dfB[dfB['モジュール種類'] == 'サスペンション']['モジュール状態'].unique()
         rB = dfB[dfB['モジュール種類'] == '無線']['モジュール状態'].unique()
