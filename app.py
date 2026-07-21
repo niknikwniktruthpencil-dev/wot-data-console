@@ -13,7 +13,7 @@ try:
 except ImportError:
     HAS_IMG_COORD = False
 
-# ページ設定 (スマホ対応のため initial_sidebar_state を auto に変更)
+# ページ設定
 st.set_page_config(page_title="RECAT 総合データコンソール", layout="wide", initial_sidebar_state="auto")
 
 # === セッションステートの初期化 ===
@@ -48,7 +48,7 @@ for potential_img in ["Screenshot 2026-07-17 23-00-25.jpg", "Screenshot 2026-07-
         SAMPLE_IMG_FILE = potential_img
         break
 
-# === CSS (公式サイト風モバイル・フラットレイアウト) ===
+# === CSS (公式サイト風フラットUI・ボタン化対応) ===
 css_string = """
 <style>
 /* 全体背景をダークに強制 */
@@ -56,105 +56,118 @@ css_string = """
 [data-testid="stSidebar"] { background-color: #1a1a1a !important; border-right: 1px solid #333; }
 .stApp, .stApp p, .stApp label, .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6, .stApp span { color: #e5e5e5 !important; }
 
-/* 入力・選択UIパーツ */
-ul[role="listbox"], ul[role="listbox"] * { background-color: #1f1f1f !important; color: #ffffff !important; }
-li[role="option"] { background-color: #1f1f1f !important; color: #ffffff !important; }
-li[role="option"]:hover, li[role="option"]:focus, li[aria-selected="true"] { background-color: #333333 !important; color: #60a5fa !important; border-left: 3px solid #60a5fa; }
-div[data-baseweb="select"] > div { background-color: #1f1f1f !important; color: #ffffff !important; border: 1px solid #333 !important; border-radius: 4px !important; }
-input { background-color: #1f1f1f !important; color: #ffffff !important; border: 1px solid #333 !important; border-radius: 4px !important; }
-div[data-testid="stButton"] button { background-color: #1f1f1f !important; color: #60a5fa !important; border: 1px solid #333 !important; border-radius: 4px !important; }
-div[data-testid="stButton"] button:hover { background-color: #333333 !important; color: #ffffff !important; border: 1px solid #60a5fa !important; }
+/* PC向け基本レイアウト */
+.block-container { max-width: 1600px; padding-top: 1.5rem; }
 
-/* === 公式サイト風リストレイアウト (車輌図鑑用) === */
+/* === ラジオボタンを公式風モジュールパネルに偽装 === */
+.stRadio div[role="radiogroup"] > label {
+    background-color: #1f2937 !important;
+    border: 1px solid #374151 !important;
+    border-radius: 4px !important;
+    padding: 12px 10px !important;
+    margin-bottom: 8px !important;
+    display: block !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+}
+/* 選択時のハイライト (最近のブラウザのみ対応) */
+.stRadio div[role="radiogroup"] > label:has(input:checked) {
+    border-color: #58a6ff !important;
+    background-color: rgba(88, 166, 255, 0.1) !important;
+}
+.stRadio div[role="radiogroup"] > label:hover {
+    border-color: #8b949e !important;
+}
+/* ネイティブの丸いラジオボタンを隠す */
+.stRadio div[role="radiogroup"] > label div[data-baseweb="radio"] { display: none !important; }
+/* ラベルテキストのスタイル */
+.stRadio div[role="radiogroup"] > label p { 
+    color: #e5e5e5 !important; 
+    font-size: 0.85em !important; 
+    font-weight: 500 !important; 
+    margin: 0 !important;
+    text-align: center !important;
+    line-height: 1.2 !important;
+}
+.stRadio div[role="radiogroup"] > label:has(input:checked) p {
+    color: #58a6ff !important;
+    font-weight: bold !important;
+}
+
+/* === 公式サイト風リストレイアウト (車輌図鑑詳細用) === */
 .off-row { 
     display: flex; 
     justify-content: space-between; 
     align-items: center; 
-    padding: 12px 0px; 
+    padding: 8px 0px; 
     border-bottom: 1px solid rgba(255, 255, 255, 0.1); 
 }
 .off-row:hover { background-color: rgba(255,255,255,0.02); }
 .off-label { 
     color: #a1a1aa; 
-    font-size: 0.95em; 
+    font-size: 0.8em; 
     font-weight: 400; 
+    width: 60%;
+    line-height: 1.2;
 }
 .off-val { 
     color: #ffffff; 
-    font-size: 1.0em; 
-    font-weight: 700; 
+    font-size: 0.9em; 
+    font-weight: 600; 
     text-align: right; 
+    width: 40%;
 }
 .off-suf { 
     color: #9ca3af; 
-    font-size: 0.85em; 
+    font-size: 0.7em; 
     font-weight: normal; 
-    margin-left: 4px; 
+    margin-left: 2px; 
 }
 
-/* セクションタイトル (モジュール名) */
-.panel-title { 
-    font-size: 1.05em !important; 
-    color: #e2e8f0 !important; 
-    margin-top: 30px; 
-    margin-bottom: 5px; 
-    border-bottom: 2px solid #94a3b8 !important; /* 公式風の水色/グレー線 */
-    padding-bottom: 8px; 
-    font-weight: 500;
-    letter-spacing: 0.5px; 
+/* モジュールのカラムヘッダー線 */
+.mod-header {
+    border-bottom: 2px solid #e5e5e5;
+    padding-bottom: 5px;
+    margin-bottom: 15px;
+    font-size: 0.95em;
+    font-weight: bold;
+    color: #e5e5e5;
 }
 
-/* PC向けのコンテナ調整 */
-.block-container { max-width: 1600px; padding-top: 1.5rem; }
-@media (min-width: 769px) {
-    .panel-box { padding: 20px; background-color: #161b22; border-radius: 8px; margin-bottom: 24px; border: 1px solid #2d3748; }
-}
+/* 主要性能トップボード */
+.major-stat-box { margin-bottom: 15px; }
+.major-stat-title { font-size: 0.9em; color: #a1a1aa; border-bottom: 1px solid #374151; padding-bottom: 3px; margin-bottom: 5px; }
+.major-stat-value { font-size: 1.8em; font-weight: bold; color: #ffffff; line-height: 1.1; }
+.major-stat-unit { font-size: 0.4em; color: #a1a1aa; font-weight: normal; }
 
-/* 比較テーブル */
-.comp-table { width: 100%; border-collapse: separate; border-spacing: 0; margin-top: 10px; font-size: 0.95em; background-color: #161b22; border-radius: 8px; overflow: hidden; border: 1px solid #2d3748; }
-.comp-table th { background-color: #1f2937; padding: 12px; border-bottom: 2px solid #60a5fa; text-align: center; font-size: 1.0em; color: #ffffff !important; }
-.comp-table td { padding: 10px 12px; border-bottom: 1px solid #2d3748; text-align: center; color: #e5e5e5 !important;}
-.comp-label { text-align: left !important; color: #9ca3af !important; width: 28%; font-weight: 500; background-color: #0d1117; }
-.win-stat { color: #60a5fa !important; font-weight: bold; background-color: rgba(96, 165, 250, 0.1); }
-
-/* 装甲シミュレーター結果 */
-.armor-result { font-size: 3.5em !important; font-weight: 800 !important; color: #f87171 !important; text-align: center !important; margin-top: 10px !important; margin-bottom: 5px !important; line-height: 1.1 !important; display: block !important; text-shadow: 0 0 10px rgba(248,113,114,0.3); }
-.armor-result-bounce { font-size: 2.8em !important; font-weight: 800 !important; color: #9ca3af !important; text-align: center !important; margin-top: 10px !important; margin-bottom: 5px !important; display: block !important;}
-.armor-subtext { text-align: center !important; color: #9ca3af !important; font-size: 0.9em !important; margin-bottom: 15px !important; display: block !important;}
+/* 比較用等のパネルボックス */
+.panel-box { padding: 20px; background-color: #161b22; border-radius: 8px; margin-bottom: 24px; border: 1px solid #2d3748; }
 
 /* 車輌画像表示用クラス */
-.tank-image-container { text-align: center; margin-bottom: 20px; padding: 10px; }
+.tank-image-container { text-align: center; margin-bottom: 10px; padding: 10px; }
 .tank-image { max-width: 100%; max-height: 250px; object-fit: contain; filter: drop-shadow(0px 10px 15px rgba(0,0,0,0.8)); }
 
 .header-logo { width: 140px; height: auto; display: block; margin: 0 auto 15px auto; }
 .sidebar-logo { width: 110px; height: auto; display: block; margin: 0 auto 10px auto; }
 
-/* === スマホ向け専用完全フラットレイアウト（画面幅768px以下） === */
+/* === 比較・その他既存CSS === */
+.comp-table { width: 100%; border-collapse: separate; border-spacing: 0; margin-top: 10px; font-size: 0.95em; background-color: #161b22; border-radius: 8px; overflow: hidden; border: 1px solid #2d3748; }
+.comp-table th { background-color: #1f2937; padding: 12px; border-bottom: 2px solid #60a5fa; text-align: center; font-size: 1.0em; color: #ffffff !important; }
+.comp-table td { padding: 10px 12px; border-bottom: 1px solid #2d3748; text-align: center; color: #e5e5e5 !important;}
+.comp-label { text-align: left !important; color: #9ca3af !important; width: 28%; font-weight: 500; background-color: #0d1117; }
+.win-stat { color: #60a5fa !important; font-weight: bold; background-color: rgba(96, 165, 250, 0.1); }
+.armor-result { font-size: 3.5em !important; font-weight: 800 !important; color: #f87171 !important; text-align: center !important; margin-top: 10px !important; margin-bottom: 5px !important; line-height: 1.1 !important; display: block !important; text-shadow: 0 0 10px rgba(248,113,114,0.3); }
+.armor-result-bounce { font-size: 2.8em !important; font-weight: 800 !important; color: #9ca3af !important; text-align: center !important; margin-top: 10px !important; margin-bottom: 5px !important; display: block !important;}
+
+/* スマホレイアウト */
 @media (max-width: 768px) {
     .block-container { padding-left: 12px !important; padding-right: 12px !important; padding-top: 1rem !important; }
-    .panel-box { padding: 0px !important; background-color: transparent !important; border: none !important; box-shadow: none !important; margin-bottom: 25px !important; }
-    
-    .tank-image-container { padding: 0px; margin-bottom: 10px; }
     .tank-image { max-height: 180px; }
-    
-    /* リストのパディング調整 */
-    .off-row { padding: 12px 2px; }
-    .off-label { font-size: 0.9em; }
-    .off-val { font-size: 1.0em; }
-    .off-suf { font-size: 0.8em; }
-    
-    .comp-table { font-size: 0.75em !important; border-radius: 4px !important; }
-    .comp-table th { padding: 8px 4px !important; font-size: 0.9em !important; }
-    .comp-table td { padding: 8px 4px !important; }
-    .comp-label { width: 35% !important; font-size: 0.85em !important; }
-    
-    .armor-result { font-size: 2.8em !important; }
-    .armor-result-bounce { font-size: 2.2em !important; }
-    
+    .major-stat-value { font-size: 1.4em; }
+    .off-label { font-size: 0.85em; }
+    .off-val { font-size: 0.9em; }
     h1 { font-size: 1.4em !important; margin-top: -15px !important; }
     .header-logo { width: 110px; margin-bottom: 10px; }
-    
-    div[data-testid="stExpander"] { background-color: #1f1f1f !important; border-radius: 8px !important; border: 1px solid #333 !important; }
 }
 </style>
 """
@@ -276,26 +289,8 @@ if df.empty:
     st.stop()
 
 # ==========================================
-# 公式サイト風 リストレンダリング関数
+# 拡張シミュレーション 計算ロジック
 # ==========================================
-def render_html_zukan(label, value, suffix=""):
-    """公式サイトのように左ラベル、右バリューの1行レイアウトを生成"""
-    if value and str(value) != "-":
-        st.markdown(f"<div class='off-row'><div class='off-label'>{label}</div><div class='off-val'>{value} <span class='off-suf'>{suffix}</span></div></div>", unsafe_allow_html=True)
-
-# ==========================================
-# 拡張シミュレーション & ユーティリティ
-# ==========================================
-def get_tank_image_base64(tank_name):
-    """ローカルのtanksフォルダから画像を読み込む"""
-    safe_name = re.sub(r'[\\/*?:"<>|]', "", tank_name)
-    img_path = os.path.join(base_dir, "tanks", f"{safe_name}.png")
-    if os.path.exists(img_path):
-        with open(img_path, 'rb') as f:
-            data = f.read()
-        return f"data:image/png;base64,{base64.b64encode(data).decode()}"
-    return f"https://via.placeholder.com/800x400/1f2937/58a6ff?text={tank_name.replace(' ', '+')}"
-
 def sim_val(base_str, mult, is_int=False):
     if mult == 1.0: return base_str
     if pd.isna(base_str) or str(base_str).strip() == "-": return "-"
@@ -367,6 +362,17 @@ def calc_camo_bonuses(tank_type, apply_camo, apply_adv_camo, apply_camo_net):
     still_bonus = base_bonus + max(adv_camo_bonus, camo_net_bonus)
     return move_bonus, still_bonus
 
+def calc_crew_and_skill_mult(apply_vents, apply_food_passive, apply_food_active, apply_born_leader):
+    bonus_sum = 0.0
+    if apply_vents: bonus_sum += 5.0
+    if apply_food_passive: bonus_sum += 5.0
+    if apply_food_active: bonus_sum += 15.0
+    if apply_born_leader: bonus_sum += 5.0
+    
+    crew_mult = 1.0 + (bonus_sum * 0.0043)
+    skill_mult = 1.0 + (bonus_sum / 100.0)
+    return crew_mult, skill_mult
+
 def get_conceal_values(conceal_str, tank_type, apply_camo, apply_adv_camo, apply_camo_net, apply_camo_skill, apply_green_thumb, skill_mult):
     move_c = get_split_str(conceal_str, 0)
     still_c = get_split_str(conceal_str, 1)
@@ -390,17 +396,6 @@ def get_conceal_values(conceal_str, tank_type, apply_camo, apply_adv_camo, apply
         return f"{move_val:.2f}", f"{still_val:.2f}"
     except:
         return move_c, still_c
-
-def calc_crew_and_skill_mult(apply_vents, apply_food_passive, apply_food_active, apply_born_leader):
-    bonus_sum = 0.0
-    if apply_vents: bonus_sum += 5.0
-    if apply_food_passive: bonus_sum += 5.0
-    if apply_food_active: bonus_sum += 15.0
-    if apply_born_leader: bonus_sum += 5.0
-    
-    crew_mult = 1.0 + (bonus_sum * 0.0043)
-    skill_mult = 1.0 + (bonus_sum / 100.0)
-    return crew_mult, skill_mult
 
 def get_vision_values(vision_str, apply_optics, apply_binocs, apply_sit_aware, crew_mult, skill_mult):
     if pd.isna(vision_str) or vision_str == "-":
@@ -532,6 +527,10 @@ def comp_tr(label, valA, valB, higher_better=True, suffix=""):
     dispB = f"{valB} {suffix}".strip() if valB != "-" else "-"
     return f"<tr><td class='comp-label'>{label}</td><td class='{clsA}'>{dispA}</td><td class='{clsB}'>{dispB}</td></tr>"
 
+def render_html_zukan(label, value, suffix=""):
+    """公式サイトのようなフラットリストレイアウト（左ラベル、右バリュー）を出力"""
+    if value and str(value) != "-":
+        st.markdown(f"<div class='off-row'><div class='off-label'>{label}</div><div class='off-val'>{value} <span class='off-suf'>{suffix}</span></div></div>", unsafe_allow_html=True)
 
 # ==========================================
 # 0. ホーム（メインメニュー）
@@ -582,14 +581,14 @@ if st.session_state['app_mode'] == "🏠 ホーム (メインメニュー)":
 # 1. 車輌図鑑
 # ==========================================
 elif st.session_state['app_mode'] == "📖 車輌図鑑":
-    st.markdown("<div class='panel-box'>", unsafe_allow_html=True)
+    st.markdown("<div class='panel-title' style='margin-top:0;'>🔍 車輌の検索・絞り込み</div>", unsafe_allow_html=True)
     c1, c2, c3, c4, c5 = st.columns(5)
-    z_mode = c1.radio("モード", ["WWII", "Cold War"], horizontal=True)
-    z_q = c2.text_input("名前で検索 (フリーワード):", placeholder="例: Tiger")
+    z_mode = c1.radio("モード", ["WWII", "Cold War"], horizontal=True, label_visibility="collapsed")
+    z_q = c2.text_input("検索", placeholder="名前で検索...", label_visibility="collapsed")
     f_df = df[df['モード'] == z_mode].copy()
-    z_nation = c3.selectbox("国別", ["すべて"] + list(f_df['国'].dropna().unique()))
-    z_type = c4.selectbox("車種", ["すべて", "軽戦車", "中戦車", "重戦車", "駆逐戦車", "自走砲"])
-    z_tier = c5.selectbox("Tier / 時代", ["すべて", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "戦後", "エスカレーション", "デタント"])
+    z_nation = c3.selectbox("国別", ["すべて"] + list(f_df['国'].dropna().unique()), label_visibility="collapsed")
+    z_type = c4.selectbox("車種", ["すべて", "軽戦車", "中戦車", "重戦車", "駆逐戦車", "自走砲"], label_visibility="collapsed")
+    z_tier = c5.selectbox("Tier / 時代", ["すべて", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "戦後", "エスカレーション", "デタント"], label_visibility="collapsed")
     if z_q: f_df = f_df[f_df['正確な車輌名'].str.contains(z_q, case=False, na=False)]
     if z_nation != "すべて": f_df = f_df[f_df['国'] == z_nation]
     if z_type != "すべて": f_df = f_df[f_df['タイプ'] == z_type]
@@ -599,73 +598,100 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
         st.warning("条件に一致する車輌がありません。")
         st.stop()
     selected_tank = st.selectbox("🎯 車輌を選択", tank_list)
-    st.markdown("</div>", unsafe_allow_html=True)
     
     t_data = df[df['正確な車輌名'] == selected_tank]
+    tank_type_zukan = t_data['タイプ'].iloc[0] if not t_data.empty else "-"
     
     # 車輌画像の表示
     img_b64 = get_tank_image_base64(selected_tank)
     st.markdown(f"<div class='tank-image-container'><img src='{img_b64}' class='tank-image'></div>", unsafe_allow_html=True)
 
-    mc1, mc2, mc3, mc4, mc5 = st.columns(5)
+    # === UIコンテナの定義（描画順の制御） ===
+    major_stats_container = st.container()
+    st.markdown("<div class='panel-title'>モジュールのカスタマイズ</div>", unsafe_allow_html=True)
+    modules_container = st.container()
+    sim_container = st.container()
+    st.markdown("<div class='panel-title'>モジュールの詳細</div>", unsafe_allow_html=True)
+    details_container = st.container()
+
+    # === モジュール選択用UIの作成 (公式風パネルラジオ) ===
     guns = t_data[t_data['モジュール種類'] == '主砲']['モジュール状態'].unique()
     turrets = t_data[t_data['モジュール種類'] == '砲塔']['モジュール状態'].unique()
     engines = t_data[t_data['モジュール種類'] == 'エンジン']['モジュール状態'].unique()
     susps = t_data[t_data['モジュール種類'] == 'サスペンション']['モジュール状態'].unique()
     radios = t_data[t_data['モジュール種類'] == '無線']['モジュール状態'].unique()
-    s_gun = mc1.selectbox("主砲", guns) if len(guns) > 0 else None
-    s_turret = mc2.selectbox("砲塔", turrets) if len(turrets) > 0 else None
-    s_engine = mc3.selectbox("エンジン", engines) if len(engines) > 0 else None
-    s_susp = mc4.selectbox("履帯", susps) if len(susps) > 0 else None
-    s_radio = mc5.selectbox("無線", radios) if len(radios) > 0 else None
     
-    tank_type_zukan = t_data['タイプ'].iloc[0] if not t_data.empty else "-"
-    camo_txt = get_camo_bonus_text(tank_type_zukan)
-    adv_camo_txt = get_adv_camo_text(tank_type_zukan)
-    camo_net_txt = get_camo_net_text(tank_type_zukan)
-    
-    with st.expander("🛠️ 拡張シミュレーション (タップで設定を開閉)", expanded=False):
-        c_sim1, c_sim2, c_sim3, c_sim4 = st.columns(4)
-        with c_sim1:
-            st.markdown("<div style='color:#58a6ff; font-weight:bold; margin-bottom:8px;'>⚙️ パーツ (火力・共通)</div>", unsafe_allow_html=True)
-            apply_rammer_zukan = st.checkbox("装填棒 (-7.5%)", key="rammer_zukan")
-            apply_vstab_zukan = st.checkbox("砲安定装置 (旋回精度+20%)", key="vstab_zukan")
-            apply_gld_zukan = st.checkbox("射撃装置 (照準時間-10%)", key="gld_zukan")
-            apply_vents_zukan = st.checkbox("改良型換気装置 (搭乗員+5%)", key="vents_zukan")
-        with c_sim2:
-            st.markdown("<div style='color:#58a6ff; font-weight:bold; margin-bottom:8px;'>⚙️ パーツ (機動/視認/隠蔽)</div>", unsafe_allow_html=True)
-            apply_grouser_zukan = st.checkbox("追加グローサー (旋回/抵抗+7.5%)", key="grouser_zukan")
-            apply_turbo_zukan = st.checkbox("ターボチャージャー (速度/出力+5%)", key="turbo_zukan")
-            apply_optics_zukan = st.checkbox("薄膜レンズ (全車: 10%)", key="optics_zukan")
-            apply_binocs_zukan = st.checkbox("双眼鏡 (全車: 20% *静止)", key="binocs_zukan")
-            apply_adv_camo_zukan = st.checkbox(f"改良型迷彩 ({tank_type_zukan}: {adv_camo_txt})", key="adv_zukan")
-            apply_camo_net_zukan = st.checkbox(f"迷彩ネット ({tank_type_zukan}: {camo_net_txt} *静止)", key="net_zukan")
-        with c_sim3:
-            st.markdown("<div style='color:#58a6ff; font-weight:bold; margin-bottom:8px;'>🎨 外観 / 🥩 消耗品</div>", unsafe_allow_html=True)
-            apply_camo_zukan = st.checkbox(f"迷彩塗装 ({tank_type_zukan}: {camo_txt})", key="camo_zukan")
-            apply_food_p_zukan = st.checkbox("改良型食料 (常時: 搭乗員+5%)", key="food_p_zukan")
-            apply_food_a_zukan = st.checkbox("└ 使用時効果 (さらに+15%)", key="food_a_zukan")
-            apply_fuel_p_zukan = st.checkbox("改良型燃料 (常時: 速度+5%/旋回+10%)", key="fuel_p_zukan")
-            apply_fuel_a_zukan = st.checkbox("└ 使用時効果 (出力+10%)", key="fuel_a_zukan")
-        with c_sim4:
-            st.markdown("<div style='color:#58a6ff; font-weight:bold; margin-bottom:8px;'>👤 車長スキル</div>", unsafe_allow_html=True)
-            apply_born_leader_zukan = st.checkbox("天性のリーダー (搭乗員/スキル+5%)", key="born_leader_zukan")
-            apply_camo_skill_zukan = st.checkbox("迷彩の専門知識 (隠蔽+7.5%)", key="camo_skill_zukan")
-            apply_green_thumb_zukan = st.checkbox("隠蔽の達人 (+10% ※茂み限定)", key="green_thumb_zukan")
-            apply_sit_aware_zukan = st.checkbox("状況判断力 (視認+6%)", key="sit_aware_zukan")
-            apply_signal_expert_zukan = st.checkbox("通信エキスパート (通信+30%)", key="signal_expert_zukan")
-            apply_clutch_braking_zukan = st.checkbox("クラッチの名手 (車体旋回+7.5%)", key="clutch_braking_zukan")
-            apply_rapid_aim_zukan = st.checkbox("迅速な照準 (砲塔旋回+10%)", key="rapid_aim_zukan")
-            apply_snap_shot_zukan = st.checkbox("速射 (砲塔旋回精度+10%)", key="snap_shot_zukan")
+    with modules_container:
+        mc1, mc2, mc3, mc4, mc5 = st.columns(5)
+        with mc1:
+            st.markdown("<div class='mod-header'>主砲</div>", unsafe_allow_html=True)
+            s_gun = st.radio("主砲", guns, label_visibility="collapsed") if len(guns) > 0 else None
+        with mc2:
+            st.markdown("<div class='mod-header'>砲塔</div>", unsafe_allow_html=True)
+            s_turret = st.radio("砲塔", turrets, label_visibility="collapsed") if len(turrets) > 0 else None
+        with mc3:
+            st.markdown("<div class='mod-header'>エンジン</div>", unsafe_allow_html=True)
+            s_engine = st.radio("エンジン", engines, label_visibility="collapsed") if len(engines) > 0 else None
+        with mc4:
+            st.markdown("<div class='mod-header'>サスペンション</div>", unsafe_allow_html=True)
+            s_susp = st.radio("履帯", susps, label_visibility="collapsed") if len(susps) > 0 else None
+        with mc5:
+            st.markdown("<div class='mod-header'>無線</div>", unsafe_allow_html=True)
+            s_radio = st.radio("無線", radios, label_visibility="collapsed") if len(radios) > 0 else None
 
+    # === 拡張シミュレーションの設定 ===
+    with sim_container:
+        camo_txt = get_camo_bonus_text(tank_type_zukan)
+        adv_camo_txt = get_adv_camo_text(tank_type_zukan)
+        camo_net_txt = get_camo_net_text(tank_type_zukan)
+        
+        with st.expander("🛠️ 拡張シミュレーション (パーツ・消耗品・スキル)", expanded=False):
+            c_sim1, c_sim2, c_sim3, c_sim4 = st.columns(4)
+            with c_sim1:
+                st.markdown("<div style='color:#58a6ff; font-weight:bold; margin-bottom:8px;'>⚙️ パーツ (火力・共通)</div>", unsafe_allow_html=True)
+                apply_rammer_zukan = st.checkbox("装填棒 (-7.5%)", key="rammer_zukan")
+                apply_vstab_zukan = st.checkbox("砲安定装置 (旋回精度+20%)", key="vstab_zukan")
+                apply_gld_zukan = st.checkbox("射撃装置 (照準時間-10%)", key="gld_zukan")
+                apply_vents_zukan = st.checkbox("改良型換気装置 (搭乗員+5%)", key="vents_zukan")
+            with c_sim2:
+                st.markdown("<div style='color:#58a6ff; font-weight:bold; margin-bottom:8px;'>⚙️ パーツ (機動/視認/隠蔽)</div>", unsafe_allow_html=True)
+                apply_grouser_zukan = st.checkbox("追加グローサー (旋回/抵抗+7.5%)", key="grouser_zukan")
+                apply_turbo_zukan = st.checkbox("ターボチャージャー (速度/出力+5%)", key="turbo_zukan")
+                apply_optics_zukan = st.checkbox("薄膜レンズ (全車: 10%)", key="optics_zukan")
+                apply_binocs_zukan = st.checkbox("双眼鏡 (全車: 20% *静止)", key="binocs_zukan")
+                apply_adv_camo_zukan = st.checkbox(f"改良型迷彩 ({adv_camo_txt})", key="adv_zukan")
+                apply_camo_net_zukan = st.checkbox(f"迷彩ネット ({camo_net_txt} *静止)", key="net_zukan")
+            with c_sim3:
+                st.markdown("<div style='color:#58a6ff; font-weight:bold; margin-bottom:8px;'>🎨 外観 / 🥩 消耗品</div>", unsafe_allow_html=True)
+                apply_camo_zukan = st.checkbox(f"迷彩塗装 ({camo_txt})", key="camo_zukan")
+                apply_food_p_zukan = st.checkbox("改良型食料 (常時: 搭乗員+5%)", key="food_p_zukan")
+                apply_food_a_zukan = st.checkbox("└ 使用時効果 (さらに+15%)", key="food_a_zukan")
+                apply_fuel_p_zukan = st.checkbox("改良型燃料 (常時: 速度+5%/旋回+10%)", key="fuel_p_zukan")
+                apply_fuel_a_zukan = st.checkbox("└ 使用時効果 (出力+10%)", key="fuel_a_zukan")
+            with c_sim4:
+                st.markdown("<div style='color:#58a6ff; font-weight:bold; margin-bottom:8px;'>👤 車長スキル</div>", unsafe_allow_html=True)
+                apply_born_leader_zukan = st.checkbox("天性のリーダー (搭乗員/スキル+5%)", key="born_leader_zukan")
+                apply_camo_skill_zukan = st.checkbox("迷彩の専門知識 (隠蔽+7.5%)", key="camo_skill_zukan")
+                apply_green_thumb_zukan = st.checkbox("隠蔽の達人 (+10% ※茂み限定)", key="green_thumb_zukan")
+                apply_sit_aware_zukan = st.checkbox("状況判断力 (視認+6%)", key="sit_aware_zukan")
+                apply_signal_expert_zukan = st.checkbox("通信エキスパート (通信+30%)", key="signal_expert_zukan")
+                apply_clutch_braking_zukan = st.checkbox("クラッチの名手 (車体旋回+7.5%)", key="clutch_braking_zukan")
+                apply_rapid_aim_zukan = st.checkbox("迅速な照準 (砲塔旋回+10%)", key="rapid_aim_zukan")
+                apply_snap_shot_zukan = st.checkbox("速射 (砲塔旋回精度+10%)", key="snap_shot_zukan")
+
+        sim_warnings = []
+        if apply_optics_zukan and apply_binocs_zukan:
+            sim_warnings.append("※視認パーツ重複：表記上は効果の大きい双眼鏡が優先表示されます。")
+        if apply_adv_camo_zukan and apply_camo_net_zukan:
+            sim_warnings.append("※隠蔽パーツ重複：静止時は効果の高い迷彩ネットが優先適用されます。")
+        if sim_warnings:
+            for w in sim_warnings:
+                st.markdown(f"<div style='color:#ff7b72; font-size:0.85em; margin-bottom:15px; margin-top:-10px;'>{w}</div>", unsafe_allow_html=True)
+
+    # === シミュレーション変数の計算 ===
     crew_mult, skill_mult = calc_crew_and_skill_mult(apply_vents_zukan, apply_food_p_zukan, apply_food_a_zukan, apply_born_leader_zukan)
     is_crew_buffed = (apply_vents_zukan or apply_food_p_zukan or apply_food_a_zukan or apply_born_leader_zukan)
 
-    # ＝＝＝ スマホ表示最適化（カラムではなく1列にスタック） ＝＝＝
-    st.markdown("<div class='panel-box'>", unsafe_allow_html=True)
-    
-    # 【セクション：主砲】
-    st.markdown(f"<div class='panel-title'>{s_gun if s_gun else '主砲'}</div>", unsafe_allow_html=True)
     dpm_mult = (1.0 / 0.925) if apply_rammer_zukan else 1.0
     dpm_mult *= crew_mult
     reload_mult = 0.925 if apply_rammer_zukan else 1.0
@@ -675,113 +701,171 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
     acc_mult = 1.0 / crew_mult
     rof_mult = 1.0 * crew_mult
     
-    sim_dpm = sim_val(get_val(t_data, s_gun, 'DPM(主砲)'), dpm_mult, is_int=True)
-    sim_reload = sim_val(get_val(t_data, s_gun, '装填時間(主砲)'), reload_mult)
-    sim_aim = sim_val(get_val(t_data, s_gun, '照準時間(秒)'), aim_mult)
-    sim_acc = sim_val(get_val(t_data, s_gun, '精度(m)'), acc_mult)
-    sim_rof = sim_val(get_val(t_data, s_gun, '射撃速度'), rof_mult)
+    speed_mult = 1.05 if apply_turbo_zukan else 1.0
+    if apply_fuel_p_zukan: speed_mult *= 1.05
+    hp_mult = 1.05 if apply_turbo_zukan else 1.0
+    if apply_fuel_a_zukan: hp_mult *= 1.10
     
-    disp_mult = 0.80 if apply_vstab_zukan else 1.0
-    if apply_snap_shot_zukan: disp_mult *= (1.0 - (0.10 * skill_mult))
-    disp_mult /= crew_mult
-    sim_disp = sim_val(get_val(t_data, s_gun, '砲塔旋回中の射撃精度'), disp_mult)
-
-    pen_main = get_val(t_data, s_gun, '貫通力100m(主砲)')
-    pen_500 = get_val(t_data, s_gun, '貫通力500m(主砲)')
-    dmg_main = get_val(t_data, s_gun, 'ダメージ(主砲)')
-
-    render_html_zukan("射撃速度", sim_rof, f"発/分 <span style='color:#ff7b72'>{'(バフ)' if is_crew_buffed else ''}</span>")
-    render_html_zukan("ダメージ", f"{get_split_str(dmg_main, 0)} / {get_split_str(dmg_main, 1)} / {get_split_str(dmg_main, 2)}", "HP")
-    render_html_zukan("モジュールの損傷", get_val(t_data, s_gun, 'モジュールの損傷'), "HP")
-    render_html_zukan("攻撃半径", get_val(t_data, s_gun, '攻撃半径'), "M")
-    render_html_zukan("分間ダメージ", sim_dpm, f"HP/分 <span style='color:#ff7b72'>{'(バフ)' if (apply_rammer_zukan or is_crew_buffed) else ''}</span>")
-    render_html_zukan("100 Mでの貫通力", f"{get_split_str(pen_main, 0)} / {get_split_str(pen_main, 1)} / {get_split_str(pen_main, 2)}", "MM")
-    render_html_zukan("500 Mでの貫通力", f"{get_split_str(pen_500, 0)} / {get_split_str(pen_500, 1)}", "MM")
-    render_html_zukan("弾薬の最大速度", get_val(t_data, s_gun, '弾薬の最大速度'), "M/S")
-    render_html_zukan("弾薬の最大射程", get_val(t_data, s_gun, '弾薬の最大射程'), "M")
-    render_html_zukan("砲弾タイプ", get_val(t_data, s_gun, '砲弾タイプ'))
-    render_html_zukan("装填時間", sim_reload, f"秒 <span style='color:#ff7b72'>{'(バフ)' if (apply_rammer_zukan or is_crew_buffed) else ''}</span>")
-    render_html_zukan("照準時間", sim_aim, f"秒 <span style='color:#ff7b72'>{'(バフ)' if (apply_gld_zukan or is_crew_buffed) else ''}</span>")
-    render_html_zukan("総弾数", get_val(t_data, s_gun, '総弾数'), "発")
-    render_html_zukan("精度", sim_acc, f"M <span style='color:#ff7b72'>{'(バフ)' if is_crew_buffed else ''}</span>")
-    render_html_zukan("砲塔旋回中の射撃精度", sim_disp, f"M <span style='color:#ff7b72'>{'(バフ)' if (apply_vstab_zukan or apply_snap_shot_zukan or is_crew_buffed) else ''}</span>")
-    render_html_zukan("俯角", get_val(t_data, s_gun, '俯角'), "度")
-    render_html_zukan("仰角", get_val(t_data, s_gun, '仰角'), "度")
-    render_html_zukan("水平可動域", get_val(t_data, s_gun, '水平可動域'), "度")
-
-    # 【セクション：砲塔】
-    st.markdown(f"<div class='panel-title'>{s_turret if s_turret else '砲塔'}</div>", unsafe_allow_html=True)
-    turret_armor = get_val(t_data, s_turret, '砲塔装甲(mm)')
     tt_mult = 1.0 * crew_mult
     if apply_fuel_p_zukan: tt_mult *= 1.10
     if apply_rapid_aim_zukan: tt_mult *= (1.0 + (0.10 * skill_mult))
-    sim_tt = sim_val(get_turret_traverse(t_data, s_turret), tt_mult)
-    vision = get_val(t_data, s_turret, '視認範囲(m)')
-    vision_v = get_vision_values(vision, apply_optics_zukan, apply_binocs_zukan, apply_sit_aware_zukan, crew_mult, skill_mult)
     
-    render_html_zukan("砲塔装甲", f"{get_split_str(turret_armor, 0)} / {get_split_str(turret_armor, 1)} / {get_split_str(turret_armor, 2)}", "MM")
-    render_html_zukan("旋回速度", sim_tt, f"度/秒 <span style='color:#ff7b72'>{'(バフ)' if (is_crew_buffed or apply_fuel_p_zukan or apply_rapid_aim_zukan) else ''}</span>")
-    render_html_zukan("視認範囲", vision_v, f"M <span style='color:#ff7b72'>{'(バフ)' if (apply_optics_zukan or apply_binocs_zukan or apply_sit_aware_zukan or is_crew_buffed) else ''}</span>")
-    render_html_zukan("HP", get_val(t_data, s_turret, 'HP'), "HP")
-
-    # 【セクション：エンジン】
-    st.markdown(f"<div class='panel-title'>{s_engine if s_engine else 'エンジン'}</div>", unsafe_allow_html=True)
-    speed_mult = 1.05 if apply_turbo_zukan else 1.0
-    if apply_fuel_p_zukan: speed_mult *= 1.05
-    sim_fwd = sim_val(get_val(t_data, s_engine, '最大前進速度'), speed_mult)
-    sim_rev = sim_val(get_val(t_data, s_engine, '最大後進速度'), speed_mult)
-    
-    hp_mult = 1.05 if apply_turbo_zukan else 1.0
-    if apply_fuel_a_zukan: hp_mult *= 1.10
-    sim_hp = sim_val(get_val(t_data, s_engine, 'エンジン出力'), hp_mult, is_int=True)
-    sim_ptw = sim_val(get_val(t_data, s_engine, '出力重量比'), hp_mult)
-
-    render_html_zukan("エンジン出力", sim_hp, f"HP <span style='color:#ff7b72'>{'(バフ)' if (apply_turbo_zukan or apply_fuel_a_zukan) else ''}</span>")
-    render_html_zukan("出力重量比", sim_ptw, f"HP/T <span style='color:#ff7b72'>{'(バフ)' if (apply_turbo_zukan or apply_fuel_a_zukan) else ''}</span>")
-    render_html_zukan("最大前進速度", sim_fwd, f"KM/H <span style='color:#ff7b72'>{'(バフ)' if (apply_turbo_zukan or apply_fuel_p_zukan) else ''}</span>")
-    render_html_zukan("最大後退速度", sim_rev, f"KM/H <span style='color:#ff7b72'>{'(バフ)' if (apply_turbo_zukan or apply_fuel_p_zukan) else ''}</span>")
-    render_html_zukan("火災発生率", get_val(t_data, s_engine, '火災発生率'), "パーセント")
-
-    # 【セクション：サスペンション】
-    st.markdown(f"<div class='panel-title'>{s_susp if s_susp else 'サスペンション'}</div>", unsafe_allow_html=True)
     trav_mult = 1.0
     if apply_grouser_zukan: trav_mult *= 1.075
     if apply_clutch_braking_zukan: trav_mult *= (1.0 + (0.075 * skill_mult))
     res_mult = 0.925 if apply_grouser_zukan else 1.0
     res_mult /= crew_mult
-    sim_trav = sim_val(get_hull_traverse(t_data, s_susp), trav_mult)
-    sim_res = sim_res_val(get_ground_resistance(t_data, s_susp), res_mult, res_mult, res_mult)
-
-    render_html_zukan("旋回速度", sim_trav, f"度/秒 <span style='color:#ff7b72'>{'(バフ)' if (apply_grouser_zukan or apply_clutch_braking_zukan) else ''}</span>")
-    render_html_zukan("接地抵抗", sim_res, f"<span style='color:#ff7b72'>{'(バフ)' if (apply_grouser_zukan or is_crew_buffed) else ''}</span>")
-
-    # 【セクション：無線】
-    st.markdown(f"<div class='panel-title'>{s_radio if s_radio else '無線'}</div>", unsafe_allow_html=True)
+    
     radio_mult = 1.0 * crew_mult
     if apply_signal_expert_zukan: radio_mult *= (1.0 + (0.30 * skill_mult))
-    sim_radio = sim_val(get_val(t_data, s_radio, '通信範囲(m)'), radio_mult)
-    render_html_zukan("通信範囲", sim_radio, f"M <span style='color:#ff7b72'>{'(バフ)' if (is_crew_buffed or apply_signal_expert_zukan) else ''}</span>")
+    
+    disp_mult = 0.80 if apply_vstab_zukan else 1.0
+    if apply_snap_shot_zukan: disp_mult *= (1.0 - (0.10 * skill_mult))
+    disp_mult /= crew_mult
+    
+    move_disp_mult = 1.0 / crew_mult
 
-    # 【セクション：車体 / 隠蔽 / エコノミー】
-    st.markdown("<div class='panel-title'>車体・隠蔽・価格</div>", unsafe_allow_html=True)
-    hull_armor = get_val(t_data, s_turret, '車体装甲(mm)')
+    # === 基本数値の取得と加工 ===
+    sim_dpm = sim_val(get_val(t_data, s_gun, 'DPM(主砲)'), dpm_mult, is_int=True)
+    pen_main = get_val(t_data, s_gun, '貫通力100m(主砲)')
+    pen_fmt = f"{get_split_str(pen_main, 0)}/{get_split_str(pen_main, 1)}/{get_split_str(pen_main, 2)}"
+    dmg_main = get_val(t_data, s_gun, 'ダメージ(主砲)')
+    dmg_fmt = f"{get_split_str(dmg_main, 0)}/{get_split_str(dmg_main, 1)}/{get_split_str(dmg_main, 2)}"
+    hp_val = get_val(t_data, s_turret, 'HP')
+    
+    sim_fwd = sim_val(get_val(t_data, s_engine, '最大前進速度'), speed_mult)
+    sim_rev = sim_val(get_val(t_data, s_engine, '最大後進速度'), speed_mult)
+    speed_fmt = f"{sim_fwd}/{sim_rev}"
+    
+    vision = get_val(t_data, s_turret, '視認範囲(m)')
+    vision_v = get_vision_values(vision, apply_optics_zukan, apply_binocs_zukan, apply_sit_aware_zukan, crew_mult, skill_mult)
+    
     conceal = get_val(t_data, s_turret, '発見可能範囲')
     move_v, still_v = get_conceal_values(conceal, tank_type_zukan, apply_camo_zukan, apply_adv_camo_zukan, apply_camo_net_zukan, apply_camo_skill_zukan, apply_green_thumb_zukan, skill_mult)
-    crew_exp_base = get_val(t_data, s_turret, '搭乗員EXPレート')
-    crew_exp_sim = get_crew_exp_str(crew_exp_base, apply_food_p_zukan)
+    camo_fmt = f"{move_v}/{still_v}"
 
-    render_html_zukan("車体装甲", f"{get_split_str(hull_armor, 0)} / {get_split_str(hull_armor, 1)} / {get_split_str(hull_armor, 2)}", "MM")
-    render_html_zukan("発見可能範囲 (移動)", move_v, f"M <span style='color:#ff7b72'>{'(バフ)' if (apply_camo_zukan or apply_adv_camo_zukan or apply_camo_net_zukan or apply_camo_skill_zukan) else ''}</span>")
-    render_html_zukan("発見可能範囲 (静止)", still_v, f"M <span style='color:#ff7b72'>{'(バフ)' if (apply_camo_zukan or apply_adv_camo_zukan or apply_camo_net_zukan or apply_camo_skill_zukan) else ''}</span>")
-    if apply_green_thumb_zukan:
-        st.markdown("<div style='text-align:right; color:#ff7b72; font-size:0.8em; margin-top:-10px; margin-bottom:5px; padding-right:5px;'>※茂み潜伏時のみ隠蔽の達人(-10%)が適用</div>", unsafe_allow_html=True)
-    
-    render_html_zukan("シルバー獲得レート", get_val(t_data, s_turret, 'シルバー獲得レート'), "%")
-    render_html_zukan("EXP獲得レート", get_val(t_data, s_turret, 'EXP獲得レート'), "%")
-    render_html_zukan("フリーEXP獲得レート", get_val(t_data, s_turret, 'フリーEXPレート'), "%")
-    render_html_zukan("搭乗員EXP獲得レート", crew_exp_sim, f"% <span style='color:#ff7b72'>{'(バフ)' if apply_food_p_zukan else ''}</span>")
-    
-    st.markdown("</div>", unsafe_allow_html=True)
+    # エコノミー情報
+    price_val = "価格情報なし"
+    silver_rate = get_val(t_data, s_turret, 'シルバー獲得レート')
+    exp_rate = get_val(t_data, s_turret, 'EXP獲得レート')
+    free_exp_rate = get_val(t_data, s_turret, 'フリーEXPレート')
+    crew_exp_sim = get_crew_exp_str(get_val(t_data, s_turret, '搭乗員EXPレート'), apply_food_p_zukan)
+    mm_tier = get_val(t_data, s_turret, '最大TIER')
+
+    # === 「主要性能」トップボードの描画 ===
+    with major_stats_container:
+        st.markdown("<div class='panel-title'>主要性能</div>", unsafe_allow_html=True)
+        col_eco, col_stat1, col_stat2, col_stat3 = st.columns([1.2, 1, 1, 1])
+        
+        with col_eco:
+            st.markdown(f"""
+            <div style="font-size:0.9em; font-weight:bold; color:#e5e5e5; border-bottom:1px solid #333; padding-bottom:5px; margin-bottom:10px;">戦闘獲得レート</div>
+            <div class="off-row"><div class="off-label">シルバー</div><div class="off-val">{silver_rate}<span class="off-suf">%</span></div></div>
+            <div class="off-row"><div class="off-label">車輌EXP</div><div class="off-val">{exp_rate}<span class="off-suf">%</span></div></div>
+            <div class="off-row"><div class="off-label">フリーEXP</div><div class="off-val">{free_exp_rate}<span class="off-suf">%</span></div></div>
+            <div class="off-row"><div class="off-label">搭乗員EXP</div><div class="off-val" style="{'color:#60a5fa;' if apply_food_p_zukan else ''}">{crew_exp_sim}<span class="off-suf">%</span></div></div>
+            <div style="font-size:0.9em; font-weight:bold; color:#e5e5e5; border-bottom:1px solid #333; padding-bottom:5px; margin-top:15px; margin-bottom:10px;">マッチメイキング</div>
+            <div class="off-row"><div class="off-label">最大 TIER</div><div class="off-val">{mm_tier}</div></div>
+            """, unsafe_allow_html=True)
+        
+        with col_stat1:
+            st.markdown(f"""
+            <div class="major-stat-box">
+                <div class="major-stat-title">貫通力</div>
+                <div class="major-stat-value">{pen_fmt} <span class="major-stat-unit">MM</span></div>
+            </div>
+            <div class="major-stat-box">
+                <div class="major-stat-title">最大速度 (前進/後退)</div>
+                <div class="major-stat-value">{speed_fmt} <span class="major-stat-unit">KM/H</span></div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+        with col_stat2:
+            st.markdown(f"""
+            <div class="major-stat-box">
+                <div class="major-stat-title">ダメージ</div>
+                <div class="major-stat-value">{dmg_fmt} <span class="major-stat-unit">HP</span></div>
+            </div>
+            <div class="major-stat-box">
+                <div class="major-stat-title">視認範囲</div>
+                <div class="major-stat-value">{vision_v} <span class="major-stat-unit">M</span></div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+        with col_stat3:
+            st.markdown(f"""
+            <div class="major-stat-box">
+                <div class="major-stat-title">HP</div>
+                <div class="major-stat-value">{hp_val} <span class="major-stat-unit">HP</span></div>
+            </div>
+            <div class="major-stat-box">
+                <div class="major-stat-title">発見可能範囲 (移動/静止)</div>
+                <div class="major-stat-value">{camo_fmt} <span class="major-stat-unit">M</span></div>
+            </div>
+            """, unsafe_allow_html=True)
+
+    # === モジュール詳細の描画 (5列フラットリスト) ===
+    with details_container:
+        d1, d2, d3, d4, d5 = st.columns(5)
+        
+        with d1:
+            st.markdown(f"<div style='font-weight:bold; margin-bottom:15px; font-size:0.95em; color:#e5e5e5; border-bottom:1px solid #60a5fa; padding-bottom:5px;'>{s_gun if s_gun else '主砲'}</div>", unsafe_allow_html=True)
+            sim_reload = sim_val(get_val(t_data, s_gun, '装填時間(主砲)'), reload_mult)
+            sim_aim = sim_val(get_val(t_data, s_gun, '照準時間(秒)'), aim_mult)
+            sim_acc = sim_val(get_val(t_data, s_gun, '精度(m)'), acc_mult)
+            sim_rof = sim_val(get_val(t_data, s_gun, '射撃速度'), rof_mult)
+            sim_disp = sim_val(get_val(t_data, s_gun, '砲塔旋回中の射撃精度'), disp_mult)
+            pen_500 = get_val(t_data, s_gun, '貫通力500m(主砲)')
+            
+            render_html_zukan("射撃速度", sim_rof, "発/分")
+            render_html_zukan("ダメージ", dmg_fmt, "HP")
+            render_html_zukan("モジュールの損傷", get_val(t_data, s_gun, 'モジュールの損傷'), "HP")
+            render_html_zukan("攻撃半径", get_val(t_data, s_gun, '攻撃半径'), "M")
+            render_html_zukan("分間ダメージ", sim_dpm, "HP/分")
+            render_html_zukan("100 Mでの貫通力", pen_fmt, "MM")
+            render_html_zukan("500 Mでの貫通力", f"{get_split_str(pen_500, 0)}/{get_split_str(pen_500, 1)}/{get_split_str(pen_500, 2)}", "MM")
+            render_html_zukan("弾薬の最大速度", get_val(t_data, s_gun, '弾薬の最大速度'), "M/S")
+            render_html_zukan("弾薬の最大射程", get_val(t_data, s_gun, '弾薬の最大射程'), "M")
+            render_html_zukan("砲弾タイプ", get_val(t_data, s_gun, '砲弾タイプ'))
+            render_html_zukan("装填時間", sim_reload, "秒")
+            render_html_zukan("照準時間", sim_aim, "秒")
+            render_html_zukan("総弾数", get_val(t_data, s_gun, '総弾数'), "発")
+            render_html_zukan("精度", sim_acc, "M")
+            render_html_zukan("砲塔旋回中の射撃精度", sim_disp, "M")
+            render_html_zukan("俯角", get_val(t_data, s_gun, '俯角'), "度")
+            render_html_zukan("仰角", get_val(t_data, s_gun, '仰角'), "度")
+            render_html_zukan("水平可動域", get_val(t_data, s_gun, '水平可動域'), "度")
+
+        with d2:
+            st.markdown(f"<div style='font-weight:bold; margin-bottom:15px; font-size:0.95em; color:#e5e5e5; border-bottom:1px solid #60a5fa; padding-bottom:5px;'>{s_turret if s_turret else '砲塔'}</div>", unsafe_allow_html=True)
+            turret_armor = get_val(t_data, s_turret, '砲塔装甲(mm)')
+            sim_tt = sim_val(get_turret_traverse(t_data, s_turret), tt_mult)
+            render_html_zukan("砲塔装甲", f"{get_split_str(turret_armor, 0)}/{get_split_str(turret_armor, 1)}/{get_split_str(turret_armor, 2)}", "MM")
+            render_html_zukan("旋回速度", sim_tt, "度/秒")
+            render_html_zukan("視認範囲", vision_v, "M")
+            render_html_zukan("位置", "PRIMARY")
+            
+        with d3:
+            st.markdown(f"<div style='font-weight:bold; margin-bottom:15px; font-size:0.95em; color:#e5e5e5; border-bottom:1px solid #60a5fa; padding-bottom:5px;'>{s_engine if s_engine else 'エンジン'}</div>", unsafe_allow_html=True)
+            sim_hp = sim_val(get_val(t_data, s_engine, 'エンジン出力'), hp_mult, is_int=True)
+            sim_ptw = sim_val(get_val(t_data, s_engine, '出力重量比'), hp_mult)
+            render_html_zukan("エンジン出力", sim_hp, "HP")
+            render_html_zukan("出力重量比", sim_ptw, "HP/T")
+            render_html_zukan("最大前進速度", sim_fwd, "KM/H")
+            render_html_zukan("最大後退速度", sim_rev, "KM/H")
+            render_html_zukan("火災発生率", get_val(t_data, s_engine, '火災発生率'), "パーセント")
+
+        with d4:
+            st.markdown(f"<div style='font-weight:bold; margin-bottom:15px; font-size:0.95em; color:#e5e5e5; border-bottom:1px solid #60a5fa; padding-bottom:5px;'>{s_susp if s_susp else 'サスペンション'}</div>", unsafe_allow_html=True)
+            sim_trav = sim_val(get_hull_traverse(t_data, s_susp), trav_mult)
+            sim_res = sim_res_val(get_ground_resistance(t_data, s_susp), res_mult, res_mult, res_mult)
+            render_html_zukan("旋回速度", sim_trav, "度/秒")
+            render_html_zukan("接地抵抗", f"{get_split_str(sim_res, 0)}/{get_split_str(sim_res, 1)}/{get_split_str(sim_res, 2)}")
+
+        with d5:
+            st.markdown(f"<div style='font-weight:bold; margin-bottom:15px; font-size:0.95em; color:#e5e5e5; border-bottom:1px solid #60a5fa; padding-bottom:5px;'>{s_radio if s_radio else '無線'}</div>", unsafe_allow_html=True)
+            sim_radio = sim_val(get_val(t_data, s_radio, '通信範囲(m)'), radio_mult)
+            render_html_zukan("通信範囲", sim_radio, "M")
 
 # ==========================================
 # 2. 車輌比較
@@ -990,7 +1074,7 @@ elif st.session_state['app_mode'] == "⚖️ 車輌比較":
     html += comp_tr("弾速 (最大/通常弾)", get_split_str(get_val(dfA, s_gunA, '弾薬の最大速度'), 0), get_split_str(get_val(dfB, s_gunB, '弾薬の最大速度'), 0), True, "m/s")
     html += comp_tr("弾速 (金弾/APCR等)", get_split_str(get_val(dfA, s_gunA, '弾薬の最大速度'), 1), get_split_str(get_val(dfB, s_gunB, '弾薬の最大速度'), 1), True, "m/s")
     html += comp_tr("弾薬の最大射程", get_split_str(get_val(dfA, s_gunA, '弾薬の最大射程'), 0), get_split_str(get_val(dfB, s_gunB, '弾薬の最大射程'), 0), True, "m")
-    html += comp_tr("総弾数", get_val(dfA, s_gunA, '総弾数'), get_val(dfB, s_gunB, '総弾数'), True, "発")
+    html += comp_tr("総弾数", get_split_str(get_val(dfA, s_gunA, '総弾数'), 0), get_split_str(get_val(dfB, s_gunB, '総弾数'), 0), True, "発")
     
     disp_mult_A = 0.80 if apply_vstab_A else 1.0
     if apply_snap_shot_A: disp_mult_A *= (1.0 - (0.10 * skill_mult_A))
