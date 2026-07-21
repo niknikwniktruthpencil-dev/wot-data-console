@@ -18,20 +18,20 @@ except ImportError:
 st.set_page_config(page_title="RECAT 総合データコンソール", layout="wide", initial_sidebar_state="expanded")
 
 # === スマホでのピンチズーム(拡大縮小)を強制的に許可するハック ===
+# Streamlitが自動で設定する「ズーム禁止」を1秒に1回監視して破壊し、許可状態にします。
 components.html(
     """
     <script>
-    try {
-        const meta = window.parent.document.querySelector('meta[name="viewport"]');
-        if(meta) {
-            meta.content = "width=device-width, initial-scale=1.0, maximum-scale=10.0, user-scalable=yes";
-        } else {
-            const newMeta = window.parent.document.createElement('meta');
-            newMeta.name = "viewport";
-            newMeta.content = "width=device-width, initial-scale=1.0, maximum-scale=10.0, user-scalable=yes";
-            window.parent.document.head.appendChild(newMeta);
-        }
-    } catch(e) {}
+    setInterval(function() {
+        try {
+            var metaTags = window.parent.document.getElementsByTagName('meta');
+            for (var i = 0; i < metaTags.length; i++) {
+                if (metaTags[i].name === "viewport" && metaTags[i].content.includes("user-scalable=no")) {
+                    metaTags[i].content = "width=device-width, initial-scale=1.0, maximum-scale=10.0, user-scalable=yes";
+                }
+            }
+        } catch(e) {}
+    }, 1000);
     </script>
     """,
     height=0, width=0
@@ -119,9 +119,9 @@ if logo_base64:
 # === CSS (完全ダークモード・すりガラスUI・モジュール全収め対応) ===
 css_string = f"""
 <style>
-/* スマホでの拡大縮小(ピンチ)を許可する基本設定 */
+/* ズームの動作をCSS側からも許可 */
 html, body, .stApp {{
-    touch-action: auto !important;
+    touch-action: manipulation !important;
 }}
 
 /* 全体背景の設定 */
@@ -145,59 +145,42 @@ html, body, .stApp {{
 }}
 
 /* =========================================================
-   ラジオボタンを公式の角丸パネルに完全偽装 (PC・共通設定)
+   ラジオボタンを公式風ガラス調丸みパネルに完全偽装 (PC・基本共通)
    ========================================================= */
-div[data-testid="stRadio"] div[role="radiogroup"] {{
-    gap: 6px; 
+.stRadio div[role="radiogroup"] {{
+    gap: 6px;
 }}
-div[data-testid="stRadio"] div[role="radiogroup"] > label[data-baseweb="radio"] {{
+.stRadio div[role="radiogroup"] > label {{
     background-color: rgba(31, 41, 55, 0.7) !important;
-    border: 1px solid rgba(255, 255, 255, 0.15) !important;
-    border-radius: 6px !important;
-    padding: 12px 6px !important;
-    margin-bottom: 0 !important;
-    display: flex !important;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer !important;
-    min-height: 80px; 
-    transition: all 0.2s ease !important;
     backdrop-filter: blur(5px);
     -webkit-backdrop-filter: blur(5px);
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    border-radius: 6px !important;
+    padding: 12px 10px !important;
+    margin-bottom: 8px !important;
+    display: block !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    min-height: 80px;
 }}
-/* 選択時のハイライト (水色発光枠) */
-div[data-testid="stRadio"] div[role="radiogroup"] > label[data-baseweb="radio"][aria-checked="true"],
-div[data-testid="stRadio"] div[role="radiogroup"] > label[data-baseweb="radio"]:has(input:checked) {{
+.stRadio div[role="radiogroup"] > label:has(input:checked) {{
+    border-color: #58a6ff !important;
     background-color: rgba(88, 166, 255, 0.15) !important;
-    border: 1px solid #58a6ff !important; 
     box-shadow: 0 0 8px rgba(88,166,255,0.4);
 }}
-/* Hover時 */
-div[data-testid="stRadio"] div[role="radiogroup"] > label[data-baseweb="radio"]:hover {{
-    background-color: rgba(255, 255, 255, 0.08) !important;
+.stRadio div[role="radiogroup"] > label:hover {{
     border-color: #8b949e !important;
 }}
-/* ラジオの丸(○)を確実に消す */
-div[data-testid="stRadio"] div[role="radiogroup"] > label[data-baseweb="radio"] > div:first-child {{
-    display: none !important;
+.stRadio div[role="radiogroup"] > label div[data-baseweb="radio"] {{ display: none !important; }}
+.stRadio div[role="radiogroup"] > label p {{ 
+    color: #e5e5e5 !important; 
+    font-size: 0.85em !important; 
+    font-weight: 500 !important; 
+    margin: 0 !important; 
+    text-align: center !important; 
+    line-height: 1.2 !important; 
 }}
-/* テキストのスタイル */
-div[data-testid="stRadio"] div[role="radiogroup"] > label[data-baseweb="radio"] p {{
-    color: #8b949e !important;
-    font-size: 0.85em !important;
-    font-weight: 500 !important;
-    margin: 0 !important;
-    text-align: center !important;
-    line-height: 1.2 !important;
-    word-break: break-word;
-    width: 100%;
-}}
-/* 選択中のテキストを白く光らせる */
-div[data-testid="stRadio"] div[role="radiogroup"] > label[data-baseweb="radio"][aria-checked="true"] p,
-div[data-testid="stRadio"] div[role="radiogroup"] > label[data-baseweb="radio"]:has(input:checked) p {{
-    color: #ffffff !important;
-    font-weight: bold !important;
-}}
+.stRadio div[role="radiogroup"] > label:has(input:checked) p {{ color: #58a6ff !important; font-weight: bold !important; }}
 /* ========================================================= */
 
 /* その他のUIパーツ */
@@ -269,85 +252,63 @@ div[data-testid="stButton"] button:hover {{ background-color: rgba(88, 166, 255,
     .off-val {{ font-size: 1.0em; }}
     .off-suf {{ font-size: 0.8em; }}
     
-    /* ======== スマホ版モジュールの「横並び全収め」ガラス調完全版 ======== */
-    /* コンテナが縦に並ぶのを強制的に阻止し、横に並べる */
+    /* ======== スマホ版モジュールの「強制横並び・全圧縮」 ======== */
+    /* モジュールエリアのブロックを絶対に縦積みさせない */
     div[data-testid="stHorizontalBlock"]:has(.mod-header) {{
         display: flex !important;
         flex-direction: row !important;
         flex-wrap: nowrap !important;
-        overflow: hidden !important; 
+        overflow: visible !important; 
         width: 100% !important;
-        max-width: 100vw !important;
         gap: 2px !important;
         padding: 0 !important;
+        margin-left: -4px !important;
+        margin-right: -4px !important;
     }}
     
-    /* 5つの列を均等に圧縮 */
+    /* 5つの列の幅を「絶対に広げさせない」鉄壁の設定 */
     div[data-testid="stHorizontalBlock"]:has(.mod-header) > div[data-testid="column"] {{
-        width: 19% !important;
-        min-width: 0 !important;
-        max-width: 20% !important;
-        flex: 1 1 0% !important;
+        flex: 0 0 19.5% !important; /* 強制的に約1/5の幅に固定 */
+        width: 19.5% !important;
+        min-width: 19.5% !important;
+        max-width: 19.5% !important;
         padding: 0 1px !important;
         margin: 0 !important;
+        overflow: hidden !important;
     }}
     
     /* スマホ版モジュールヘッダー文字調整 */
     .mod-header {{
-        font-size: 0.55em !important;
+        font-size: 0.55rem !important;
         white-space: nowrap !important;
         overflow: hidden !important;
-        text-overflow: ellipsis !important;
+        text-overflow: clip !important;
         padding-bottom: 2px !important;
         margin-bottom: 4px !important;
         text-align: center !important;
     }}
     
-    /* ラジオボタンの外枠も強制的に縮小 */
-    div[data-testid="stHorizontalBlock"]:has(.mod-header) div[data-testid="stRadio"],
-    div[data-testid="stHorizontalBlock"]:has(.mod-header) div[role="radiogroup"] {{
-        width: 100% !important;
-        gap: 2px !important;
-    }}
-    
-    /* ★ラジオボタンのパネル：スマホでもしっかりガラス調と角丸を維持★ */
-    div[data-testid="stHorizontalBlock"]:has(.mod-header) div[role="radiogroup"] > label {{
-        width: 100% !important;
-        min-height: 50px !important;
+    /* ラジオボタン枠をスマホでさらにコンパクトに */
+    .stRadio div[role="radiogroup"] > label {{
+        min-height: 48px !important;
         height: auto !important;
-        padding: 4px 1px !important;
+        padding: 4px 2px !important;
         margin-bottom: 4px !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
-        border-radius: 6px !important; /* 角丸復活 */
-        background-color: rgba(31, 41, 55, 0.7) !important; /* ガラス背景復活 */
-        border: 1px solid rgba(255, 255, 255, 0.15) !important; /* 白枠復活 */
-        backdrop-filter: blur(5px);
-        -webkit-backdrop-filter: blur(5px);
     }}
     
-    /* ★スマホ版 選択時のハイライト（水色発光枠）★ */
-    div[data-testid="stHorizontalBlock"]:has(.mod-header) div[role="radiogroup"] > label:has(input:checked) {{
-        background-color: rgba(88, 166, 255, 0.15) !important;
-        border: 1px solid #58a6ff !important;
-        box-shadow: 0 0 8px rgba(88,166,255,0.4);
-    }}
-
-    /* パネル内の文字が長くても強制的に折り返し・縮小して収める */
-    div[data-testid="stHorizontalBlock"]:has(.mod-header) div[role="radiogroup"] > label p {{
-        font-size: 0.55em !important;
-        white-space: normal !important;
+    /* 文字が枠を押し広げようとするのを完全に無力化 */
+    .stRadio div[role="radiogroup"] > label p {{
+        font-size: 0.55rem !important;
+        white-space: normal !important; /* テキストの折り返しを強制 */
         word-break: break-all !important;
         overflow-wrap: anywhere !important;
-        line-height: 1.1 !important;
+        line-height: 1.05 !important;
         margin: 0 !important;
         text-align: center !important;
-    }}
-    /* スマホ版 選択中のテキストを白く光らせる */
-    div[data-testid="stHorizontalBlock"]:has(.mod-header) div[role="radiogroup"] > label:has(input:checked) p {{
-        color: #ffffff !important;
-        font-weight: bold !important;
+        width: 100% !important;
     }}
     /* ============================================================ */
 
@@ -1180,7 +1141,6 @@ elif st.session_state['app_mode'] == "⚖️ 車輌比較":
         s_turretA = ca2.selectbox("砲塔(A)", tA) if len(tA)>0 else None
         s_engineA = ca3.selectbox("エンジン(A)", eA) if len(eA)>0 else None
         
-        st.markdown("<div class='module-scroll-wrapper'></div>", unsafe_allow_html=True)
         ca4, ca5, _ = st.columns(3)
         suspA = dfA[dfA['モジュール種類'] == 'サスペンション']['モジュール状態'].unique()
         rA = dfA[dfA['モジュール種類'] == '無線']['モジュール状態'].unique()
@@ -1350,7 +1310,7 @@ elif st.session_state['app_mode'] == "⚖️ 車輌比較":
     
     html += comp_tr("俯角 (マイナス角度)", get_val(dfA, s_gunA, '俯角'), get_val(dfB, s_gunB, '俯角'), True, "度")
     html += comp_tr("仰角", get_val(dfA, s_gunA, '仰角'), get_val(dfB, s_gunB, '仰角'), True, "度")
-    html += comp_tr("水平可動域", get_val(dfA, s_gunA, '水平可動域'), get_val(dfB, s_gunB, '水平可動域'), True, "度")
+    html += comp_tr("水平可动域", get_val(dfA, s_gunA, '水平可動域'), get_val(dfB, s_gunB, '水平可動域'), True, "度")
     html += comp_tr("砲弾タイプ", get_val(dfA, s_gunA, '砲弾タイプ'), get_val(dfB, s_gunB, '砲弾タイプ'), None, "")
     html += comp_tr("弾速 (最大/通常弾)", get_split_str(get_val(dfA, s_gunA, '弾薬の最大速度'), 0), get_split_str(get_val(dfB, s_gunB, '弾薬の最大速度'), 0), True, "m/s")
     html += comp_tr("弾速 (金弾/APCR等)", get_split_str(get_val(dfA, s_gunA, '弾薬の最大速度'), 1), get_split_str(get_val(dfB, s_gunB, '弾薬の最大速度'), 1), True, "m/s")
