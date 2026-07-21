@@ -48,15 +48,15 @@ for potential_img in ["Screenshot 2026-07-17 23-00-25.jpg", "Screenshot 2026-07-
         SAMPLE_IMG_FILE = potential_img
         break
 
-# === キャラクター画像の自動解決（大文字小文字の揺れに対応） ===
+# === キャラクター画像の自動解決（大文字小文字・名前の揺れに対応） ===
 CHAR1_FILE = None
-for f in ["1.jpg", "1.jpeg", "1.png", "1.JPG", "1.JPEG", "1.PNG"]:
+for f in ["1.png", "1.jpg", "1.jpeg", "1-Photoroom.png", "1-Photoroom.jpg", "1.PNG", "1.JPG"]:
     if os.path.exists(os.path.join(base_dir, f)):
         CHAR1_FILE = f
         break
 
 CHAR2_FILE = None
-for f in ["3.png", "3.jpg", "3.jpeg", "3.PNG", "3.JPG", "3.JPEG"]:
+for f in ["3-Photoroom.png", "3-Photoroom.jpg", "3.png", "3.jpg", "3.jpeg", "3.PNG", "3.JPG"]:
     if os.path.exists(os.path.join(base_dir, f)):
         CHAR2_FILE = f
         break
@@ -196,7 +196,11 @@ div[data-testid="stButton"] button:hover {{ background-color: rgba(88, 166, 255,
 /* 画像表示コンテナ */
 .tank-image-container {{ text-align: center; margin-bottom: 10px; padding: 10px; }}
 .tank-image {{ max-width: 100%; max-height: 250px; object-fit: contain; filter: drop-shadow(0px 10px 15px rgba(0,0,0,0.8)); }}
+.header-logo {{ width: 140px; height: auto; display: block; margin: 0 auto 15px auto; }}
 .sidebar-logo {{ width: 110px; height: auto; display: block; margin: 0 auto 10px auto; }}
+
+/* キャラクター反転用クラス */
+.home-char-left {{ transform: scaleX(-1); }}
 
 /* === スマホ向け専用レイアウト（画面幅768px以下） === */
 @media (max-width: 768px) {{
@@ -215,11 +219,12 @@ div[data-testid="stButton"] button:hover {{ background-color: rgba(88, 166, 255,
     .armor-result {{ font-size: 2.8em !important; }}
     .armor-result-bounce {{ font-size: 2.2em !important; }}
     h1 {{ font-size: 1.4em !important; margin-top: -15px !important; }}
+    .header-logo {{ width: 110px; margin-bottom: 10px; }}
     div[data-testid="stExpander"] {{ background-color: rgba(31, 41, 55, 0.8) !important; border-radius: 8px !important; border: 1px solid rgba(255,255,255,0.1) !important; backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); }}
     
     /* ホーム画面スマホ最適化 */
     .home-hero-container {{ flex-direction: column !important; }}
-    .home-char-left {{ max-height: 160px !important; margin-bottom: 10px; }}
+    .home-char-left {{ max-height: 160px !important; margin-bottom: 10px; transform: scaleX(-1); }}
     .home-char-right {{ max-height: 180px !important; margin-top: 10px; }}
 }}
 </style>
