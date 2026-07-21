@@ -13,7 +13,7 @@ try:
 except ImportError:
     HAS_IMG_COORD = False
 
-# ページ設定 (スマホ対応のため initial_sidebar_state を auto に変更)
+# ページ設定
 st.set_page_config(page_title="RECAT 総合データコンソール", layout="wide", initial_sidebar_state="auto")
 
 # === セッションステートの初期化 ===
@@ -218,10 +218,12 @@ def load_and_parse_data():
         return pd.DataFrame()
 
     def get_match(pattern, text):
-        m = re.search(pattern, str(text))
+        m = re.search(pattern, str(text), re.IGNORECASE)
         return m.group(1).replace(' ', '').strip('/') if m else "-"
+        
     def get_match_all(pattern, text):
-        return [m.replace(' ', '').strip('/') for m in re.findall(pattern, str(text))]
+        return [m.replace(' ', '').strip('/') for m in re.findall(pattern, str(text), re.IGNORECASE)]
+        
     def extract_basics(text):
         m = re.search(r'ホーム › 戦車事典 › ([^/]+) / (.*?) / (?:価格|戦闘獲得レート|主要性能)', str(text))
         if m: return pd.Series([m.group(1).replace(' ', ''), re.sub(r'\s*/\s*(プレミアム車輌|退役車輌)$', '', m.group(2).strip())])
@@ -290,11 +292,18 @@ def load_and_parse_data():
     df['最大後進速度'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'最大速度[\d\.]+/([\d\.]+)\(', x))
     df['火災発生率'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'火災発生率 / (\d+)パーセント', x))
     df['接地抵抗'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'接地抵抗[^\d]*([\d/ \.]+)', x))
-    df['最大TIER'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'最大TIER[^\d]*([IVX]+)', x))
+    
+    # === エコノミー・マッチメイキングの正確なパース ===
     df['シルバー獲得レート'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'シルバー獲得レート[^\d]*(\d+)', x))
-    df['EXP獲得レート'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'EXP獲得レート[^\d]*(\d+)', x))
-    df['フリーEXPレート'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'フリーEXP獲得レート[^\d]*(\d+)', x))
-    df['搭乗員EXPレート'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'搭乗員EXPレート[^\d]*(\d+)', x))
+    def get_exp_rate(text):
+        m = re.findall(r'([^\n]*)EXP\s*獲得レート[^\d]*(\d+)', str(text), re.IGNORECASE)
+        for prefix, val in m:
+            if "フリー" not in prefix and "搭乗員" not in prefix: return val
+        return "-"
+    df['EXP獲得レート'] = df['詳細・モジュール生データ'].apply(get_exp_rate)
+    df['フリーEXPレート'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'フリー\s*EXP\s*獲得レート[^\d]*(\d+)', x))
+    df['搭乗員EXPレート'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'搭乗員\s*EXP\s*レート[^\d]*(\d+)', x))
+    df['最大TIER'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'最大\s*TIER[^\dIVX]*([IVX\d]+)', x))
 
     def get_split_val(val_str, idx):
         if pd.isna(val_str) or val_str == "-": return 0
@@ -623,10 +632,20 @@ if st.session_state['app_mode'] == "🏠 ホーム (メインメニュー)":
 # 1. 車輌図鑑
 # ==========================================
 elif st.session_state['app_mode'] == "📖 車輌図鑑":
+    
+    # === ランキングからのジャンプ処理 ===
+    jump_q = ""
+    jump_mode_idx = 0
+    if 'zukan_jump_tank' in st.session_state:
+        jump_q = st.session_state['zukan_jump_tank']
+        if st.session_state.get('zukan_jump_mode') == "Cold War":
+            jump_mode_idx = 1
+        del st.session_state['zukan_jump_tank']
+
     st.markdown("<div class='panel-title' style='margin-top:0;'>🔍 車輌の検索・絞り込み</div>", unsafe_allow_html=True)
     c1, c2, c3, c4, c5 = st.columns(5)
-    z_mode = c1.radio("モード", ["WWII", "Cold War"], horizontal=True, label_visibility="collapsed")
-    z_q = c2.text_input("検索", placeholder="名前で検索...", label_visibility="collapsed")
+    z_mode = c1.radio("モード", ["WWII", "Cold War"], index=jump_mode_idx, horizontal=True, label_visibility="collapsed")
+    z_q = c2.text_input("検索", value=jump_q, placeholder="名前で検索...", label_visibility="collapsed")
     f_df = df[df['モード'] == z_mode].copy()
     z_nation = c3.selectbox("国別", ["すべて"] + list(f_df['国'].dropna().unique()), label_visibility="collapsed")
     z_type = c4.selectbox("車種", ["すべて", "軽戦車", "中戦車", "重戦車", "駆逐戦車", "自走砲"], label_visibility="collapsed")
@@ -646,9 +665,9 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
     t_data = df[df['正確な車輌名'] == selected_tank]
     tank_type_zukan = t_data['タイプ'].iloc[0] if not t_data.empty else "-"
     
-    # 車輌画像の表示
-    img_b64 = get_tank_image_base64(selected_tank)
-    st.markdown(f"<div class='tank-image-container'><img src='{img_b64}' class='tank-image'></div>", unsafe_allow_html=True)
+    # 車輌画像の表示 (※要望により一時的に非表示)
+    # img_b64 = get_tank_image_base64(selected_tank)
+    # st.markdown(f"<div class='tank-image-container'><img src='{img_b64}' class='tank-image'></div>", unsafe_allow_html=True)
 
     # === UIコンテナの定義（描画順の制御） ===
     major_stats_placeholder = st.container()
@@ -690,7 +709,8 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
         adv_camo_txt = get_adv_camo_text(tank_type_zukan)
         camo_net_txt = get_camo_net_text(tank_type_zukan)
         
-        with st.expander("🛠️ パーツ・消耗品・スキル設定", expanded=False):
+        # ※PCでもスマホでもデフォルトで展開状態 (expanded=True) に設定
+        with st.expander("🛠️ パーツ・消耗品・スキル設定", expanded=True):
             c_sim1, c_sim2, c_sim3, c_sim4 = st.columns(4)
             with c_sim1:
                 st.markdown("<div style='color:#58a6ff; font-weight:bold; margin-bottom:8px;'>⚙️ パーツ (火力・共通)</div>", unsafe_allow_html=True)
@@ -789,28 +809,18 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
     move_v, still_v = get_conceal_values(conceal, tank_type_zukan, apply_camo_zukan, apply_adv_camo_zukan, apply_camo_net_zukan, apply_camo_skill_zukan, apply_green_thumb_zukan, skill_mult)
     camo_fmt = f"{move_v}/{still_v}"
 
-    # エコノミー情報
-    silver_rate = get_val(t_data, s_turret, 'シルバー獲得レート')
-    exp_rate = get_val(t_data, s_turret, 'EXP獲得レート')
-    free_exp_rate = get_val(t_data, s_turret, 'フリーEXPレート')
-    crew_exp_sim = get_crew_exp_str(get_val(t_data, s_turret, '搭乗員EXPレート'), apply_food_p_zukan)
-    mm_tier = get_val(t_data, s_turret, '最大TIER')
+    # === エコノミー情報 (車輌固有情報から取得) ===
+    silver_rate = str(t_data['シルバー獲得レート'].iloc[0]) if not t_data.empty else "-"
+    exp_rate = str(t_data['EXP獲得レート'].iloc[0]) if not t_data.empty else "-"
+    free_exp_rate = str(t_data['フリーEXPレート'].iloc[0]) if not t_data.empty else "-"
+    crew_exp_base = str(t_data['搭乗員EXPレート'].iloc[0]) if not t_data.empty else "-"
+    crew_exp_sim = get_crew_exp_str(crew_exp_base, apply_food_p_zukan)
+    mm_tier = str(t_data['最大TIER'].iloc[0]) if not t_data.empty else "-"
 
     # === 「主要性能」トップボードの描画 ===
     with major_stats_placeholder:
         st.markdown("<div class='panel-title'>主要性能</div>", unsafe_allow_html=True)
-        col_eco, col_stat1, col_stat2, col_stat3 = st.columns([1.2, 1, 1, 1])
-        
-        with col_eco:
-            st.markdown(f"""
-            <div style="font-size:0.9em; font-weight:bold; color:#e5e5e5; border-bottom:1px solid #333; padding-bottom:5px; margin-bottom:10px;">戦闘獲得レート</div>
-            <div class="off-row"><div class="off-label">シルバー</div><div class="off-val">{silver_rate}<span class="off-suf">%</span></div></div>
-            <div class="off-row"><div class="off-label">車輌EXP</div><div class="off-val">{exp_rate}<span class="off-suf">%</span></div></div>
-            <div class="off-row"><div class="off-label">フリーEXP</div><div class="off-val">{free_exp_rate}<span class="off-suf">%</span></div></div>
-            <div class="off-row"><div class="off-label">搭乗員EXP</div><div class="off-val" style="{('color:#60a5fa;' if apply_food_p_zukan else '')}">{crew_exp_sim}<span class="off-suf">%</span></div></div>
-            <div style="font-size:0.9em; font-weight:bold; color:#e5e5e5; border-bottom:1px solid #333; padding-bottom:5px; margin-top:15px; margin-bottom:10px;">マッチメイキング</div>
-            <div class="off-row"><div class="off-label">最大 TIER</div><div class="off-val">{mm_tier}</div></div>
-            """, unsafe_allow_html=True)
+        col_stat1, col_stat2, col_stat3 = st.columns(3)
         
         with col_stat1:
             st.markdown(f"""
@@ -819,28 +829,28 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
                 <div class="major-stat-value">{pen_fmt} <span class="major-stat-unit">MM</span></div>
             </div>
             <div class="major-stat-box">
-                <div class="major-stat-title">最大速度 (前進/後退)</div>
-                <div class="major-stat-value">{speed_fmt} <span class="major-stat-unit">KM/H</span></div>
+                <div class="major-stat-title">ダメージ</div>
+                <div class="major-stat-value">{dmg_fmt} <span class="major-stat-unit">HP</span></div>
             </div>
             """, unsafe_allow_html=True)
             
         with col_stat2:
             st.markdown(f"""
             <div class="major-stat-box">
-                <div class="major-stat-title">ダメージ</div>
-                <div class="major-stat-value">{dmg_fmt} <span class="major-stat-unit">HP</span></div>
+                <div class="major-stat-title">HP</div>
+                <div class="major-stat-value">{hp_val} <span class="major-stat-unit">HP</span></div>
             </div>
             <div class="major-stat-box">
-                <div class="major-stat-title">視認範囲</div>
-                <div class="major-stat-value">{vision_v} <span class="major-stat-unit">M</span></div>
+                <div class="major-stat-title">最大速度 (前進/後退)</div>
+                <div class="major-stat-value">{speed_fmt} <span class="major-stat-unit">KM/H</span></div>
             </div>
             """, unsafe_allow_html=True)
             
         with col_stat3:
             st.markdown(f"""
             <div class="major-stat-box">
-                <div class="major-stat-title">HP</div>
-                <div class="major-stat-value">{hp_val} <span class="major-stat-unit">HP</span></div>
+                <div class="major-stat-title">視認範囲</div>
+                <div class="major-stat-value">{vision_v} <span class="major-stat-unit">M</span></div>
             </div>
             <div class="major-stat-box">
                 <div class="major-stat-title">発見可能範囲 (移動/静止)</div>
@@ -861,21 +871,25 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
             sim_disp = sim_val(get_val(t_data, s_gun, '砲塔旋回中の射撃精度'), disp_mult)
             pen_500 = get_val(t_data, s_gun, '貫通力500m(主砲)')
             
-            render_html_zukan("射撃速度", sim_rof, "発/分")
+            render_html_zukan("射撃速度", sim_rof, f"発/分 <span style='color:#ff7b72'>{'(バフ)' if is_crew_buffed else ''}</span>")
             render_html_zukan("ダメージ", dmg_fmt, "HP")
             render_html_zukan("モジュールの損傷", get_val(t_data, s_gun, 'モジュールの損傷'), "HP")
             render_html_zukan("攻撃半径", get_val(t_data, s_gun, '攻撃半径'), "M")
-            render_html_zukan("分間ダメージ", sim_dpm, "HP/分")
+            render_html_zukan("分間ダメージ", sim_dpm, f"HP/分 <span style='color:#ff7b72'>{'(バフ)' if (apply_rammer_zukan or is_crew_buffed) else ''}</span>")
             render_html_zukan("100 Mでの貫通力", pen_fmt, "MM")
             render_html_zukan("500 Mでの貫通力", f"{get_split_str(pen_500, 0)}/{get_split_str(pen_500, 1)}/{get_split_str(pen_500, 2)}", "MM")
             render_html_zukan("弾薬の最大速度", get_val(t_data, s_gun, '弾薬の最大速度'), "M/S")
             render_html_zukan("弾薬の最大射程", get_val(t_data, s_gun, '弾薬の最大射程'), "M")
             render_html_zukan("砲弾タイプ", get_val(t_data, s_gun, '砲弾タイプ'))
-            render_html_zukan("装填時間", sim_reload, "秒")
-            render_html_zukan("照準時間", sim_aim, "秒")
+            render_html_zukan("装填時間", sim_reload, f"秒 <span style='color:#ff7b72'>{'(バフ)' if (apply_rammer_zukan or is_crew_buffed) else ''}</span>")
+            render_html_zukan("照準時間", sim_aim, f"秒 <span style='color:#ff7b72'>{'(バフ)' if (apply_gld_zukan or is_crew_buffed) else ''}</span>")
             render_html_zukan("総弾数", get_val(t_data, s_gun, '総弾数'), "発")
-            render_html_zukan("精度", sim_acc, "M")
-            render_html_zukan("砲塔旋回中の射撃精度", sim_disp, "M")
+            render_html_zukan("精度", sim_acc, f"M <span style='color:#ff7b72'>{'(バフ)' if is_crew_buffed else ''}</span>")
+            
+            sim_move_disp = sim_val(get_val(t_data, s_gun, '走行中の精度'), move_disp_mult)
+            render_html_zukan("走行中の精度 (移動時)", sim_move_disp, f"M <span style='color:#ff7b72'>{'(バフ)' if is_crew_buffed else ''}</span>")
+            
+            render_html_zukan("砲塔旋回中の射撃精度", sim_disp, f"M <span style='color:#ff7b72'>{'(バフ)' if (apply_vstab_zukan or apply_snap_shot_zukan or is_crew_buffed) else ''}</span>")
             render_html_zukan("俯角", get_val(t_data, s_gun, '俯角'), "度")
             render_html_zukan("仰角", get_val(t_data, s_gun, '仰角'), "度")
             render_html_zukan("水平可動域", get_val(t_data, s_gun, '水平可動域'), "度")
@@ -883,33 +897,49 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
         with d2:
             st.markdown(f"<div style='font-weight:bold; margin-bottom:15px; font-size:0.95em; color:#e5e5e5; border-bottom:1px solid #60a5fa; padding-bottom:5px;'>{s_turret if s_turret else '砲塔'}</div>", unsafe_allow_html=True)
             turret_armor = get_val(t_data, s_turret, '砲塔装甲(mm)')
+            hull_armor = get_val(t_data, s_turret, '車体装甲(mm)')
             sim_tt = sim_val(get_turret_traverse(t_data, s_turret), tt_mult)
+            
             render_html_zukan("砲塔装甲", f"{get_split_str(turret_armor, 0)}/{get_split_str(turret_armor, 1)}/{get_split_str(turret_armor, 2)}", "MM")
-            render_html_zukan("旋回速度", sim_tt, "度/秒")
-            render_html_zukan("視認範囲", vision_v, "M")
+            render_html_zukan("車体装甲", f"{get_split_str(hull_armor, 0)}/{get_split_str(hull_armor, 1)}/{get_split_str(hull_armor, 2)}", "MM")
+            render_html_zukan("旋回速度", sim_tt, f"度/秒 <span style='color:#ff7b72'>{'(バフ)' if (is_crew_buffed or apply_fuel_p_zukan or apply_rapid_aim_zukan) else ''}</span>")
+            render_html_zukan("視認範囲", vision_v, f"M <span style='color:#ff7b72'>{'(バフ)' if (apply_optics_zukan or apply_binocs_zukan or apply_sit_aware_zukan or is_crew_buffed) else ''}</span>")
             render_html_zukan("位置", "PRIMARY")
             
         with d3:
             st.markdown(f"<div style='font-weight:bold; margin-bottom:15px; font-size:0.95em; color:#e5e5e5; border-bottom:1px solid #60a5fa; padding-bottom:5px;'>{s_engine if s_engine else 'エンジン'}</div>", unsafe_allow_html=True)
             sim_hp = sim_val(get_val(t_data, s_engine, 'エンジン出力'), hp_mult, is_int=True)
             sim_ptw = sim_val(get_val(t_data, s_engine, '出力重量比'), hp_mult)
-            render_html_zukan("エンジン出力", sim_hp, "HP")
-            render_html_zukan("出力重量比", sim_ptw, "HP/T")
-            render_html_zukan("最大前進速度", sim_fwd, "KM/H")
-            render_html_zukan("最大後退速度", sim_rev, "KM/H")
+            
+            render_html_zukan("エンジン出力", sim_hp, f"HP <span style='color:#ff7b72'>{'(バフ)' if (apply_turbo_zukan or apply_fuel_a_zukan) else ''}</span>")
+            render_html_zukan("出力重量比", sim_ptw, f"HP/T <span style='color:#ff7b72'>{'(バフ)' if (apply_turbo_zukan or apply_fuel_a_zukan) else ''}</span>")
+            render_html_zukan("最大前進速度", sim_fwd, f"KM/H <span style='color:#ff7b72'>{'(バフ)' if (apply_turbo_zukan or apply_fuel_p_zukan) else ''}</span>")
+            render_html_zukan("最大後退速度", sim_rev, f"KM/H <span style='color:#ff7b72'>{'(バフ)' if (apply_turbo_zukan or apply_fuel_p_zukan) else ''}</span>")
             render_html_zukan("火災発生率", get_val(t_data, s_engine, '火災発生率'), "パーセント")
 
         with d4:
             st.markdown(f"<div style='font-weight:bold; margin-bottom:15px; font-size:0.95em; color:#e5e5e5; border-bottom:1px solid #60a5fa; padding-bottom:5px;'>{s_susp if s_susp else 'サスペンション'}</div>", unsafe_allow_html=True)
             sim_trav = sim_val(get_hull_traverse(t_data, s_susp), trav_mult)
             sim_res = sim_res_val(get_ground_resistance(t_data, s_susp), res_mult, res_mult, res_mult)
-            render_html_zukan("旋回速度", sim_trav, "度/秒")
-            render_html_zukan("接地抵抗", f"{get_split_str(sim_res, 0)}/{get_split_str(sim_res, 1)}/{get_split_str(sim_res, 2)}")
+            
+            render_html_zukan("旋回速度", sim_trav, f"度/秒 <span style='color:#ff7b72'>{'(バフ)' if (apply_grouser_zukan or apply_clutch_braking_zukan) else ''}</span>")
+            render_html_zukan("接地抵抗", f"{get_split_str(sim_res, 0)}/{get_split_str(sim_res, 1)}/{get_split_str(sim_res, 2)}", f"<span style='color:#ff7b72'>{'(バフ)' if (apply_grouser_zukan or is_crew_buffed) else ''}</span>")
 
         with d5:
             st.markdown(f"<div style='font-weight:bold; margin-bottom:15px; font-size:0.95em; color:#e5e5e5; border-bottom:1px solid #60a5fa; padding-bottom:5px;'>{s_radio if s_radio else '無線'}</div>", unsafe_allow_html=True)
             sim_radio = sim_val(get_val(t_data, s_radio, '通信範囲(m)'), radio_mult)
-            render_html_zukan("通信範囲", sim_radio, "M")
+            render_html_zukan("通信範囲", sim_radio, f"M <span style='color:#ff7b72'>{'(バフ)' if (is_crew_buffed or apply_signal_expert_zukan) else ''}</span>")
+
+    # === エコノミー・マッチメイキング情報 (下部へ移動) ===
+    st.markdown("<div class='panel-title'>経済性・マッチメイキング</div>", unsafe_allow_html=True)
+    eco1, eco2 = st.columns(2)
+    with eco1:
+        render_html_zukan("シルバー獲得レート", silver_rate, "%")
+        render_html_zukan("車輌EXP獲得レート", exp_rate, "%")
+        render_html_zukan("最大マッチメイキング", mm_tier, "")
+    with eco2:
+        render_html_zukan("フリーEXP獲得レート", free_exp_rate, "%")
+        render_html_zukan("搭乗員EXP獲得レート", crew_exp_sim, f"% <span style='color:#ff7b72'>{'(バフ)' if apply_food_p_zukan else ''}</span>")
 
 # ==========================================
 # 2. 車輌比較
@@ -937,8 +967,8 @@ elif st.session_state['app_mode'] == "⚖️ 車輌比較":
         
         dfA = df[df['正確な車輌名'] == tankA]
         
-        img_b64_A = get_tank_image_base64(tankA)
-        st.markdown(f"<div class='tank-image-container'><img src='{img_b64_A}' class='tank-image'></div>", unsafe_allow_html=True)
+        # img_b64_A = get_tank_image_base64(tankA)
+        # st.markdown(f"<div class='tank-image-container'><img src='{img_b64_A}' class='tank-image'></div>", unsafe_allow_html=True)
         
         ca1, ca2, ca3 = st.columns(3)
         gA = dfA[dfA['モジュール種類'] == '主砲']['モジュール状態'].unique()
@@ -1011,8 +1041,8 @@ elif st.session_state['app_mode'] == "⚖️ 車輌比較":
         
         dfB = df[df['正確な車輌名'] == tankB]
         
-        img_b64_B = get_tank_image_base64(tankB)
-        st.markdown(f"<div class='tank-image-container'><img src='{img_b64_B}' class='tank-image'></div>", unsafe_allow_html=True)
+        # img_b64_B = get_tank_image_base64(tankB)
+        # st.markdown(f"<div class='tank-image-container'><img src='{img_b64_B}' class='tank-image'></div>", unsafe_allow_html=True)
         
         cb1, cb2, cb3 = st.columns(3)
         gB = dfB[dfB['モジュール種類'] == '主砲']['モジュール状態'].unique()
@@ -1033,7 +1063,7 @@ elif st.session_state['app_mode'] == "⚖️ 車輌比較":
             
             c_b1, c_b2, c_b3, c_b4 = st.columns(4)
             with c_b1:
-                st.markdown("<span style='color:#58a6ff; font-weight:bold; margin-bottom:8px;'>⚙️ パーツ (火力/機動)</span>", unsafe_allow_html=True)
+                st.markdown("<span style='color:#58a6ff; font-size:0.9em; font-weight:bold;'>⚙️ パーツ (火力/機動)</span>", unsafe_allow_html=True)
                 apply_rammer_B = st.checkbox("装填棒(-7.5%)", key="rammer_B")
                 apply_vstab_B = st.checkbox("安定装置(+20%)", key="vstab_B")
                 apply_gld_B = st.checkbox("射撃装置(-10%)", key="gld_B")
@@ -1041,20 +1071,20 @@ elif st.session_state['app_mode'] == "⚖️ 車輌比較":
                 apply_grouser_B = st.checkbox("グローサー(+7.5%)", key="grouser_B")
                 apply_turbo_B = st.checkbox("ターボ(+5%)", key="turbo_B")
             with c_b2:
-                st.markdown("<span style='color:#58a6ff; font-weight:bold; margin-bottom:8px;'>⚙️ パーツ (視認/隠蔽)</span>", unsafe_allow_html=True)
+                st.markdown("<span style='color:#58a6ff; font-size:0.9em; font-weight:bold;'>⚙️ パーツ (視認/隠蔽)</span>", unsafe_allow_html=True)
                 apply_optics_B = st.checkbox("薄膜レンズ", key="optics_B")
                 apply_binocs_B = st.checkbox("双眼鏡(*静止)", key="binocs_B")
                 apply_adv_camo_B = st.checkbox("改良型迷彩", key="adv_B")
                 apply_camo_net_B = st.checkbox("迷彩ネット(*静止)", key="net_B")
             with c_b3:
-                st.markdown("<span style='color:#58a6ff; font-weight:bold; margin-bottom:8px;'>🎨 外観/消耗品</span>", unsafe_allow_html=True)
+                st.markdown("<span style='color:#58a6ff; font-size:0.9em; font-weight:bold;'>🎨 外観/消耗品</span>", unsafe_allow_html=True)
                 apply_camo_B = st.checkbox("迷彩塗装", key="camo_B")
                 apply_food_p_B = st.checkbox("食料(常時)", key="food_p_B")
                 apply_food_a_B = st.checkbox("食料(使用)", key="food_a_B")
                 apply_fuel_p_B = st.checkbox("燃料(常時)", key="fuel_p_B")
                 apply_fuel_a_B = st.checkbox("燃料(使用)", key="fuel_a_B")
             with c_b4:
-                st.markdown("<span style='color:#58a6ff; font-weight:bold; margin-bottom:8px;'>👤 スキル</span>", unsafe_allow_html=True)
+                st.markdown("<span style='color:#58a6ff; font-size:0.9em; font-weight:bold;'>👤 スキル</span>", unsafe_allow_html=True)
                 apply_born_leader_B = st.checkbox("天性のリーダー", key="born_leader_B")
                 apply_camo_skill_B = st.checkbox("迷彩の専門知識", key="camo_skill_B")
                 apply_green_thumb_B = st.checkbox("隠蔽の達人(*茂み)", key="green_thumb_B")
@@ -1108,7 +1138,9 @@ elif st.session_state['app_mode'] == "⚖️ 車輌比較":
     html += comp_tr("精度", sim_val(get_val(dfA, s_gunA, '精度(m)'), acc_mult_A), sim_val(get_val(dfB, s_gunB, '精度(m)'), acc_mult_B), False, "m")
     
     move_disp_mult_A = 1.0 / crew_mult_A
+    if apply_run_n_gun_A: move_disp_mult_A *= 0.90
     move_disp_mult_B = 1.0 / crew_mult_B
+    if apply_run_n_gun_B: move_disp_mult_B *= 0.90
     html += comp_tr("走行中の精度 (移動時)", sim_val(get_val(dfA, s_gunA, '走行中の精度'), move_disp_mult_A), sim_val(get_val(dfB, s_gunB, '走行中の精度'), move_disp_mult_B), False, "m")
     
     rof_mult_A = 1.0 * crew_mult_A
@@ -1212,15 +1244,15 @@ elif st.session_state['app_mode'] == "⚖️ 車輌比較":
     html += comp_tr("接地抵抗 (ミディアム)", get_split_str(res_A, 1), get_split_str(res_B, 1), False, "")
     html += comp_tr("接地抵抗 (ソフト)", get_split_str(res_A, 2), get_split_str(res_B, 2), False, "")
     
-    html += comp_tr("シルバー獲得レート", get_val(dfA, s_turretA, 'シルバー獲得レート'), get_val(dfB, s_turretB, 'シルバー獲得レート'), True, "%")
-    html += comp_tr("EXP獲得レート", get_val(dfA, s_turretA, 'EXP獲得レート'), get_val(dfB, s_turretB, 'EXP獲得レート'), True, "%")
-    html += comp_tr("フリーEXP獲得レート", get_val(dfA, s_turretA, 'フリーEXPレート'), get_val(dfB, s_turretB, 'フリーEXPレート'), True, "%")
+    html += comp_tr("シルバー獲得レート", str(dfA['シルバー獲得レート'].iloc[0]) if not dfA.empty else "-", str(dfB['シルバー獲得レート'].iloc[0]) if not dfB.empty else "-", True, "%")
+    html += comp_tr("EXP獲得レート", str(dfA['EXP獲得レート'].iloc[0]) if not dfA.empty else "-", str(dfB['EXP獲得レート'].iloc[0]) if not dfB.empty else "-", True, "%")
+    html += comp_tr("フリーEXP獲得レート", str(dfA['フリーEXPレート'].iloc[0]) if not dfA.empty else "-", str(dfB['フリーEXPレート'].iloc[0]) if not dfB.empty else "-", True, "%")
     
-    crew_exp_A = get_crew_exp_str(get_val(dfA, s_turretA, '搭乗員EXPレート'), apply_food_p_A)
-    crew_exp_B = get_crew_exp_str(get_val(dfB, s_turretB, '搭乗員EXPレート'), apply_food_p_B)
+    crew_exp_A = get_crew_exp_str(str(dfA['搭乗員EXPレート'].iloc[0]) if not dfA.empty else "-", apply_food_p_A)
+    crew_exp_B = get_crew_exp_str(str(dfB['搭乗員EXPレート'].iloc[0]) if not dfB.empty else "-", apply_food_p_B)
     html += comp_tr("搭乗員EXP獲得レート", crew_exp_A, crew_exp_B, True, "%")
     
-    html += comp_tr("最大マッチメイキング", get_val(dfA, s_turretA, '最大TIER'), get_val(dfB, s_turretB, '最大TIER'), None, "")
+    html += comp_tr("最大マッチメイキング", str(dfA['最大TIER'].iloc[0]) if not dfA.empty else "-", str(dfB['最大TIER'].iloc[0]) if not dfB.empty else "-", None, "")
     html += "</table>"
     st.markdown(html, unsafe_allow_html=True)
 
@@ -1317,7 +1349,26 @@ elif st.session_state['app_mode'] == "🏆 ランキング":
             
             st.markdown("---")
             st.markdown(f"### 👑 {r_tier} {r_type} - {rank_target} TOPランキング")
-            st.dataframe(display_df.head(100), use_container_width=True)
+            st.markdown("<div style='color:#58a6ff; margin-bottom:10px;'>💡 <b>表の行（車輌）をクリックすると、そのまま図鑑のシミュレーション画面へジャンプします！</b></div>", unsafe_allow_html=True)
+            
+            # DataFrameのクリック(on_select)を利用して図鑑へジャンプ
+            try:
+                event = st.dataframe(
+                    display_df.head(100), 
+                    use_container_width=True,
+                    on_select="rerun",
+                    selection_mode="single-row"
+                )
+                if event.selection.rows:
+                    sel_idx = event.selection.rows[0]
+                    sel_tank = display_df.iloc[sel_idx]['車輌名']
+                    st.session_state['zukan_jump_tank'] = sel_tank
+                    st.session_state['zukan_jump_mode'] = r_mode
+                    st.session_state['app_mode'] = "📖 車輌図鑑"
+                    st.rerun()
+            except TypeError:
+                # Streamlitのバージョンが古くて on_select が使えない場合のフォールバック
+                st.dataframe(display_df.head(100), use_container_width=True)
 
 # ==========================================
 # 4. 装甲計算シミュレーター (手動)
