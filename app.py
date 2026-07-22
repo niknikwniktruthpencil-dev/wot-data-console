@@ -5,6 +5,7 @@ import re
 import math
 import os
 import base64
+import io
 
 # 画像クリック機能と描画機能のインポート
 try:
@@ -18,7 +19,6 @@ except ImportError:
 st.set_page_config(page_title="RECAT 総合データコンソール", layout="wide", initial_sidebar_state="expanded")
 
 # === スマホでのピンチズーム(拡大縮小)を強制的に許可するハック ===
-# Streamlitが自動で設定する「ズーム禁止」を1秒に1回監視して破壊し、許可状態にします。
 components.html(
     """
     <script>
@@ -156,7 +156,7 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {{
     -webkit-backdrop-filter: blur(5px);
     border: 1px solid rgba(255, 255, 255, 0.15) !important;
     border-radius: 6px !important;
-    padding: 8px 6px !important; /* 無駄な余白をカット */
+    padding: 8px 6px !important; 
     margin-bottom: 0 !important;
     display: flex !important;
     align-items: center;
@@ -1731,8 +1731,14 @@ elif st.session_state['app_mode'] == "📸 スーパー簡易画像装甲測定"
         base_dir = os.path.dirname(os.path.abspath(__file__))
         
         if uploaded_file is not None:
-            target_image = Image.open(uploaded_file).convert("RGB")
+            import io
+            img_bytes = uploaded_file.getvalue()
+            if st.session_state.get('uploaded_img_bytes') != img_bytes:
+                st.session_state['uploaded_img_bytes'] = img_bytes
+                st.session_state['img_clicks'] = [] 
+            target_image = Image.open(io.BytesIO(st.session_state['uploaded_img_bytes'])).convert("RGB")
         else:
+            st.session_state.pop('uploaded_img_bytes', None)
             if SAMPLE_IMG_FILE:
                 sample_path = os.path.join(base_dir, SAMPLE_IMG_FILE)
                 target_image = Image.open(sample_path).convert("RGB")
@@ -1783,14 +1789,17 @@ elif st.session_state['app_mode'] == "📸 スーパー簡易画像装甲測定"
             elif len(clicks) == 2:
                 st.warning("🎯 最後に、「弾が飛んでくる方向（発射元）」をクリックしてください。")
             else:
-                st.success("✅ 測定完了！結果は左側に表示されています。やり直す場合は再度画像をクリックしてください。")
+                st.success("✅ 測定完了！結果は左側に表示されています。4回目をクリックすると新たに1から測定をやり直せます。")
             
             value = streamlit_image_coordinates(draw_image, key="armor_img")
             
             if value is not None:
                 pt = (value["x"], value["y"])
-                if len(st.session_state['img_clicks']) < 3 and pt not in st.session_state['img_clicks']:
-                    st.session_state['img_clicks'].append(pt)
+                if pt not in st.session_state.get('img_clicks', []):
+                    if len(st.session_state['img_clicks']) >= 3:
+                        st.session_state['img_clicks'] = [pt]
+                    else:
+                        st.session_state['img_clicks'].append(pt)
                     st.rerun() 
             
         st.markdown("</div>", unsafe_allow_html=True)
