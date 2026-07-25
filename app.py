@@ -410,16 +410,16 @@ def load_and_parse_data():
     
     df['モジュール種類'] = df.apply(get_module_type, axis=1)
 
-    df['DPM_list'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_all(r'分間ダメージ / ([\d/ \.]+)HP', x))
+    df['DPM_list'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_all(r'分間ダメージ / ([\d/ \.,]+)HP', x))
     df['DPM(主砲)'] = df['DPM_list'].apply(lambda x: x[0] if len(x) > 0 else "-")
     df['DPM(副砲)'] = df['DPM_list'].apply(lambda x: x[1] if len(x) > 1 else "-")
-    df['貫通力_list'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_all(r'100 Mでの貫通力 / ([\d/ \.]+)MM', x))
+    df['貫通力_list'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_all(r'100 Mでの貫通力 / ([\d/ \.,]+)MM', x))
     df['貫通力100m(主砲)'] = df['貫通力_list'].apply(lambda x: x[0] if len(x) > 0 else "-")
     df['貫通力100m(副砲)'] = df['貫通力_list'].apply(lambda x: x[1] if len(x) > 1 else "-")
-    df['貫通力500_list'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_all(r'500 Mでの貫通力 / ([\d/ \.]+)MM', x))
+    df['貫通力500_list'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_all(r'500 Mでの貫通力 / ([\d/ \.,]+)MM', x))
     df['貫通力500m(主砲)'] = df['貫通力500_list'].apply(lambda x: x[0] if len(x) > 0 else "-")
     df['貫通力500m(副砲)'] = df['貫通力500_list'].apply(lambda x: x[1] if len(x) > 1 else "-")
-    df['ダメージ_list'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_all(r'ダメージ / ([\d/ \.]+)HP', x))
+    df['ダメージ_list'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_all(r'ダメージ / ([\d/ \.,]+)HP', x))
     df['ダメージ(主砲)'] = df['ダメージ_list'].apply(lambda x: x[0] if len(x) > 0 else "-")
     df['ダメージ(副砲)'] = df['ダメージ_list'].apply(lambda x: x[1] if len(x) > 1 else "-")
     df['装填時間_list'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_all(r'装填時間 / ([\d\.]+)秒', x))
@@ -428,28 +428,28 @@ def load_and_parse_data():
     df['射撃速度'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'射撃速度 / ([\d\.]+)発', x))
     df['照準時間(秒)'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'照準時間 / ([\d\.]+)秒', x))
     df['精度(m)'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'精度 / ([\d\.]+)M', x))
-    df['モジュールの損傷'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'モジュールの損傷 / ([\d/ \.]+)HP', x))
+    df['モジュールの損傷'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'モジュールの損傷 / ([\d/ \.,]+)HP', x))
     df['攻撃半径'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'攻撃半径 / ([\d/ \.]+)M', x))
-    df['弾薬の最大速度'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'弾薬の最大速度 / ([\d/ \.]+)M', x))
-    df['弾薬の最大射程'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'弾薬の最大射程 / ([\d/ \.]+)M', x))
+    df['弾薬の最大速度'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'弾薬の最大速度 / ([\d/ \.,]+)M', x))
+    df['弾薬の最大射程'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'弾薬の最大射程 / ([\d/ \.,]+)M', x))
     df['砲弾タイプ'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'砲弾タイプ / ([A-Z/ \.]+)', x))
-    df['総弾数'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'総弾数 / (\d+)発', x))
+    df['総弾数'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'総弾数 / ([\d,]+)発', x))
     df['走行中の精度'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'走行中の精度.*?([\d\.]+)[ \n]*M', x))
     df['砲塔旋回中の射撃精度'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'砲塔旋回中の射撃精度 / ([\d\.]+)M', x))
     df['俯角'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'俯角 / ([\d\.]+)度', x))
     df['仰角'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'仰角 / ([\d\.]+)度', x))
     df['水平可動域'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'水平可動域 / ([\-\d/ \.]+)度', x))
-    df['HP'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'HP(\d+)HP', x))
+    df['HP'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'HP([\d,]+)HP', x))
     df['砲塔装甲(mm)'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'砲塔装甲 / ([\d/ \.]+)MM', x))
     df['車体装甲(mm)'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'車体装甲.*?([\d/ \.]+)MM', x))
     df['視認範囲(m)'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'視認範囲 / ([\d\.]+)M', x))
     df['発見可能範囲'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'発見可能範囲[^\d]*([\d\.]+/?[\d\.]*)', x))
     df['通信範囲(m)'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'通信範囲 / ([\d\.]+)M', x))
-    df['エンジン出力'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'エンジン出力 / (\d+)HP', x))
+    df['エンジン出力'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'エンジン出力 / ([\d,]+)HP', x))
     df['出力重量比'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'出力重量比 / ([\d\.]+)HP', x))
     df['最大前進速度'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'最大速度([\d\.]+)/', x))
     df['最大後進速度'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'最大速度[\d\.]+/([\d\.]+)\(', x))
-    df['火災発生率'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'火災発生率 / (\d+)パーセント', x))
+    df['火災発生率'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'火災発生率 / ([\d,]+)パーセント', x))
     df['接地抵抗'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'接地抵抗[^\d]*([\d/ \.]+)', x))
 
     # === エコノミー・マッチメイキングの正確なパース ===
@@ -470,7 +470,7 @@ def load_and_parse_data():
         if pd.isna(val_str) or val_str == "-": return 0
         parts = str(val_str).split('/')
         if len(parts) > idx:
-            num = re.sub(r'[^\d\.]', '', parts[idx])
+            num = re.sub(r'[^\d\.]', '', parts[idx].replace(',', ''))
             try: return float(num)
             except: return 0
         return 0
@@ -503,7 +503,7 @@ def sim_val(base_str, mult, is_int=False):
     res = []
     for p in parts:
         try:
-            num = float(re.search(r'[\-\d\.]+', p).group(0))
+            num = float(re.search(r'[\-\d\.]+', p.replace(',', '')).group(0))
             calc = num * mult
             if is_int: res.append(str(int(round(calc))))
             else: res.append(f"{calc:.2f}")
@@ -518,7 +518,7 @@ def sim_res_val(base_str, mult_hard, mult_med, mult_soft):
     for i, p in enumerate(parts):
         mult = mult_hard if i == 0 else (mult_med if i == 1 else mult_soft)
         try:
-            num = float(re.search(r'[\-\d\.]+', p).group(0))
+            num = float(re.search(r'[\-\d\.]+', p.replace(',', '')).group(0))
             calc = num * mult
             res.append(f"{calc:.2f}")
         except:
@@ -606,7 +606,7 @@ def get_vision_values(vision_str, apply_optics, apply_binocs, apply_sit_aware, c
     if pd.isna(vision_str) or vision_str == "-":
         return "-"
     try:
-        base_vision = float(re.search(r'([\d\.]+)', str(vision_str)).group(1))
+        base_vision = float(re.search(r'([\d\.]+)', str(vision_str).replace(',', '')).group(1))
         bonus = 0.0
         if apply_optics: bonus = max(bonus, 0.10)
         if apply_binocs: bonus = max(bonus, 0.20)
@@ -636,7 +636,7 @@ def get_val(tank_data, mod_state, col_name):
     if col_name in tank_data.columns:
         fallback = tank_data[tank_data[col_name] != "-"]
         if not fallback.empty:
-            return str(fallback[col_name].iloc[-1])
+            return str(fallback[col_name].iloc[0])
     return "-"
 
 def get_hull_traverse(tank_data, s_susp):
@@ -684,7 +684,7 @@ def get_split_str(val_str, idx):
 
 def get_float(val_str):
     try:
-        parts = re.findall(r'[\-\d\.]+', str(val_str))
+        parts = re.findall(r'[\-\d\.]+', str(val_str).replace(',', ''))
         if parts and parts[0] != '-': return float(parts[0])
         return None
     except: return None
