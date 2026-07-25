@@ -610,7 +610,7 @@ def get_vision_values(vision_str, apply_optics, apply_binocs, apply_sit_aware, c
         bonus = 0.0
         if apply_optics: bonus = max(bonus, 0.10)
         if apply_binocs: bonus = max(bonus, 0.20)
-        if apply_sit_aware: bonus += (0.06 * skill_mult)
+        if apply_sit_aware: bonus += (0.066 * skill_mult)
             
         final_vision = base_vision * (1.0 + bonus) * crew_mult 
             
@@ -899,7 +899,7 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
                 apply_born_leader_zukan = st.checkbox("天性のリーダー (搭乗員/スキル+5%)", key="born_leader_zukan")
                 apply_camo_skill_zukan = st.checkbox("迷彩の専門知識 (隠蔽+7.5%)", key="camo_skill_zukan")
                 apply_green_thumb_zukan = st.checkbox("隠蔽の達人 (+10% ※茂み限定)", key="green_thumb_zukan")
-                apply_sit_aware_zukan = st.checkbox("状況判断力 (視認+6%)", key="sit_aware_zukan")
+                apply_sit_aware_zukan = st.checkbox("状況判断力 (視認+6.6%)", key="sit_aware_zukan")
                 apply_signal_expert_zukan = st.checkbox("通信エキスパート (通信+30%)", key="signal_expert_zukan")
                 apply_clutch_braking_zukan = st.checkbox("クラッチの名手 (車体旋回+7.5%)", key="clutch_braking_zukan")
                 apply_rapid_aim_zukan = st.checkbox("迅速な照準 (砲塔旋回+10%)", key="rapid_aim_zukan")
