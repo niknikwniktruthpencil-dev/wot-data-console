@@ -93,7 +93,6 @@ def get_base64_of_bin_file(bin_file):
     return None
 
 def get_character_img_html(filename, max_height_pc, img_class=""):
-    """キャラクター画像のHTMLタグを生成"""
     if not filename:
         return ""
     b64 = get_base64_of_bin_file(filename)
@@ -105,7 +104,6 @@ def get_character_img_html(filename, max_height_pc, img_class=""):
 
 logo_base64 = get_base64_of_bin_file(LOGO_FILE)
 
-# 背景画像のCSS生成
 bg_css = ""
 if logo_base64:
     bg_css = f"""
@@ -116,145 +114,50 @@ if logo_base64:
     background-attachment: fixed;
     """
 
-# === CSS (完全ダークモード・すりガラスUI・モジュール全収め対応) ===
+# === CSS ===
 css_string = f"""
 <style>
-/* スマホでの拡大縮小(ピンチ)をCSSから強制的に許可する */
-html, body, .stApp, [data-testid="stAppViewContainer"] {{
-    touch-action: pinch-zoom pan-x pan-y !important;
-}}
-
-/* 全体背景の設定 */
-.stApp {{
-    background-color: #0d1117 !important;
-    {bg_css}
-}}
+html, body, .stApp, [data-testid="stAppViewContainer"] {{ touch-action: pinch-zoom pan-x pan-y !important; }}
+.stApp {{ background-color: #0d1117 !important; {bg_css} }}
 [data-testid="stSidebar"] {{ background-color: rgba(26, 26, 26, 0.95) !important; border-right: 1px solid #333; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);}}
 .stApp, .stApp p, .stApp label, .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6, .stApp span {{ color: #e5e5e5 !important; }}
-
-/* 共通パネル (半透明すりガラス調) */
-.panel-box {{ 
-    padding: 20px; 
-    background-color: rgba(22, 27, 34, 0.65) !important; 
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    border-radius: 12px; 
-    margin-bottom: 24px; 
-    border: 1px solid rgba(255, 255, 255, 0.1); 
-    box-shadow: 0 8px 24px rgba(0,0,0,0.8); 
-}}
-
-/* =========================================================
-   ラジオボタンを公式風ガラス調丸みパネルに完全偽装 (PC・基本共通)
-   ========================================================= */
-.stRadio div[role="radiogroup"] {{
-    gap: 8px;
-}}
-.stRadio div[role="radiogroup"] > label {{
-    background-color: rgba(31, 41, 55, 0.7) !important;
-    backdrop-filter: blur(5px);
-    -webkit-backdrop-filter: blur(5px);
-    border: 1px solid rgba(255, 255, 255, 0.15) !important;
-    border-radius: 6px !important;
-    padding: 8px 6px !important; 
-    margin-bottom: 0 !important;
-    display: flex !important;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer !important;
-    transition: all 0.2s ease !important;
-}}
-/* 選択時のハイライト (水色発光枠) */
-.stRadio div[role="radiogroup"] > label[aria-checked="true"],
-.stRadio div[role="radiogroup"] > label:has(input:checked) {{
-    background-color: rgba(88, 166, 255, 0.15) !important;
-    border: 1px solid #58a6ff !important; 
-    box-shadow: 0 0 8px rgba(88,166,255,0.4);
-}}
-/* Hover時 */
-.stRadio div[role="radiogroup"] > label:hover {{
-    border-color: #8b949e !important;
-}}
-/* ラジオの丸(○)を確実に消す */
+.panel-box {{ padding: 20px; background-color: rgba(22, 27, 34, 0.65) !important; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-radius: 12px; margin-bottom: 24px; border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 8px 24px rgba(0,0,0,0.8); }}
+.stRadio div[role="radiogroup"] {{ gap: 8px; }}
+.stRadio div[role="radiogroup"] > label {{ background-color: rgba(31, 41, 55, 0.7) !important; backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border: 1px solid rgba(255, 255, 255, 0.15) !important; border-radius: 6px !important; padding: 8px 6px !important; margin-bottom: 0 !important; display: flex !important; align-items: center; justify-content: center; cursor: pointer !important; transition: all 0.2s ease !important; }}
+.stRadio div[role="radiogroup"] > label[aria-checked="true"], .stRadio div[role="radiogroup"] > label:has(input:checked) {{ background-color: rgba(88, 166, 255, 0.15) !important; border: 1px solid #58a6ff !important; box-shadow: 0 0 8px rgba(88,166,255,0.4); }}
+.stRadio div[role="radiogroup"] > label:hover {{ border-color: #8b949e !important; }}
 .stRadio div[role="radiogroup"] > label div[data-baseweb="radio"] {{ display: none !important; }}
-
-/* テキストのスタイル */
-.stRadio div[role="radiogroup"] > label p {{ 
-    color: #8b949e !important; 
-    font-size: 0.85em !important; 
-    font-weight: 500 !important; 
-    margin: 0 !important; 
-    text-align: center !important; 
-    line-height: 1.2 !important; 
-    word-break: break-word;
-    width: 100%;
-}}
-.stRadio div[role="radiogroup"] > label[aria-checked="true"] p,
-.stRadio div[role="radiogroup"] > label:has(input:checked) p {{ 
-    color: #ffffff !important; 
-    font-weight: bold !important; 
-}}
-/* ========================================================= */
-
-/* その他のUIパーツ */
+.stRadio div[role="radiogroup"] > label p {{ color: #8b949e !important; font-size: 0.85em !important; font-weight: 500 !important; margin: 0 !important; text-align: center !important; line-height: 1.2 !important; word-break: break-word; width: 100%; }}
+.stRadio div[role="radiogroup"] > label[aria-checked="true"] p, .stRadio div[role="radiogroup"] > label:has(input:checked) p {{ color: #ffffff !important; font-weight: bold !important; }}
 ul[role="listbox"], ul[role="listbox"] * {{ background-color: #1f1f1f !important; color: #ffffff !important; }}
 li[role="option"]:hover, li[role="option"]:focus, li[aria-selected="true"] {{ background-color: #333333 !important; color: #58a6ff !important; border-left: 3px solid #58a6ff; }}
 div[data-baseweb="select"] > div, input, div[data-testid="stButton"] button {{ background-color: rgba(31, 41, 55, 0.7) !important; color: #ffffff !important; border: 1px solid rgba(255,255,255,0.15) !important; border-radius: 6px !important; backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); }}
 div[data-testid="stButton"] button {{ color: #58a6ff !important; font-weight:bold; }}
 div[data-testid="stButton"] button:hover {{ background-color: rgba(88, 166, 255, 0.2) !important; border-color: #58a6ff !important; color: #ffffff !important; }}
-
-/* 公式サイト風リストレイアウト (半透明化) */
-.off-row {{ 
-    display: flex; 
-    justify-content: space-between; 
-    align-items: center; 
-    padding: 10px 12px; 
-    margin-bottom: 4px;
-    background-color: rgba(0, 0, 0, 0.35);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 6px;
-}}
+.off-row {{ display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; margin-bottom: 4px; background-color: rgba(0, 0, 0, 0.35); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 6px; }}
 .off-row:hover {{ background-color: rgba(255,255,255,0.05); }}
 .off-label {{ color: #a1a1aa; font-size: 0.85em; font-weight: 400; width: 55%; line-height: 1.2; }}
 .off-val {{ color: #ffffff; font-size: 0.9em; font-weight: 600; text-align: right; width: 45%; transition: color 0.3s; }}
 .off-suf {{ color: #9ca3af; font-size: 0.75em; font-weight: normal; margin-left: 2px; }}
-
-/* ★バフ適用時の青文字発光クラス★ */
 .buffed-text {{ color: #58a6ff !important; font-weight: bold !important; text-shadow: 0 0 8px rgba(88, 166, 255, 0.4); }}
-
-/* セクションタイトル */
 .mod-header {{ border-bottom: 2px solid rgba(229,229,229,0.3); padding-bottom: 5px; margin-bottom: 10px; font-size: 0.95em; font-weight: bold; color: #e5e5e5; text-align: center; }}
 .panel-title {{ font-size: 1.2em !important; color: #e2e8f0 !important; margin-top: 25px; margin-bottom: 10px; border-bottom: 2px solid rgba(148,163,184,0.5) !important; padding-bottom: 8px; font-weight: 500; letter-spacing: 0.5px; }}
-
-/* 主要性能トップボード (半透明化) */
 .major-stat-box {{ background-color: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; padding: 15px; margin-bottom: 15px; backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);}}
 .major-stat-title {{ font-size: 0.9em; color: #a1a1aa; border-bottom: 1px solid rgba(55,65,81,0.5); padding-bottom: 3px; margin-bottom: 5px; }}
 .major-stat-value {{ font-size: 1.8em; font-weight: bold; color: #ffffff; line-height: 1.1; transition: color 0.3s; }}
 .major-stat-unit {{ font-size: 0.45em; color: #a1a1aa; font-weight: normal; }}
-
-/* PC向けのコンテナ調整 */
 .block-container {{ max-width: 1600px; padding-top: 1.5rem; }}
-
-/* 比較テーブル (半透明化) */
 .comp-table {{ width: 100%; border-collapse: separate; border-spacing: 0; margin-top: 10px; font-size: 0.95em; background-color: rgba(22, 27, 34, 0.65); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-radius: 8px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.1); }}
 .comp-table th {{ background-color: rgba(31, 41, 55, 0.8); padding: 12px; border-bottom: 2px solid #58a6ff; text-align: center; font-size: 1.0em; color: #ffffff !important; }}
 .comp-table td {{ padding: 10px 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); text-align: center; color: #e5e5e5 !important; }}
 .comp-label {{ text-align: left !important; color: #9ca3af !important; width: 28%; font-weight: 500; background-color: rgba(11, 15, 25, 0.5); }}
 .win-stat {{ color: #58a6ff !important; font-weight: bold; background-color: rgba(88, 166, 255, 0.15); text-shadow: 0 0 5px rgba(88,166,255,0.4); }}
-
-/* 装甲シミュレーター結果を超巨大化 */
 .armor-result {{ font-size: 5.5em !important; font-weight: 900 !important; color: #ff4b4b !important; text-align: center !important; margin: 20px 0 !important; line-height: 1.0 !important; display: block !important; text-shadow: 0 0 25px rgba(255,75,75,0.6); }}
 .armor-result-bounce {{ font-size: 4.5em !important; font-weight: 900 !important; color: #a1a1aa !important; text-align: center !important; margin: 20px 0 !important; display: block !important; text-shadow: 0 0 15px rgba(161,161,170,0.4); line-height: 1.0 !important; }}
-
-/* 画像表示コンテナ */
 .tank-image-container {{ text-align: center; margin-bottom: 10px; padding: 10px; }}
 .tank-image {{ max-width: 100%; max-height: 250px; object-fit: contain; filter: drop-shadow(0px 10px 15px rgba(0,0,0,0.8)); }}
 .sidebar-logo {{ width: 110px; height: auto; display: block; margin: 0 auto 10px auto; }}
-
-/* キャラクター反転用クラス */
 .home-char-left {{ transform: scaleX(-1); }}
-
-/* === スマホ向け専用レイアウト（画面幅768px以下） === */
 @media (max-width: 768px) {{
     .block-container {{ padding-left: 8px !important; padding-right: 8px !important; padding-top: 1rem !important; }}
     .panel-box {{ padding: 12px !important; margin-bottom: 20px !important; }}
@@ -264,109 +167,37 @@ div[data-testid="stButton"] button:hover {{ background-color: rgba(88, 166, 255,
     .off-label {{ font-size: 0.9em; }}
     .off-val {{ font-size: 1.0em; }}
     .off-suf {{ font-size: 0.8em; }}
-    
-    /* ======== スマホ版モジュールの「完全強制・5等分グリッド」ハック ======== */
-    /* Flexboxの押し出しを無効化し、数学的に画面を5つに割る CSS Grid を使用 */
-    .mobile-grid-anchor + div[data-testid="stHorizontalBlock"] {{
-        display: grid !important;
-        grid-template-columns: repeat(5, 1fr) !important;
-        gap: 4px !important;
-        width: 100% !important;
-        max-width: 100vw !important;
-        overflow: hidden !important;
-    }}
-    
-    .mobile-grid-anchor + div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {{
-        width: auto !important;
-        min-width: 0 !important;
-        padding: 0 !important;
-        margin: 0 !important;
-    }}
-    
-    /* スマホ版モジュールヘッダー文字調整 */
-    .mod-header {{
-        font-size: 0.55rem !important;
-        white-space: nowrap !important;
-        overflow: hidden !important;
-        text-overflow: clip !important;
-        padding-bottom: 2px !important;
-        margin-bottom: 4px !important;
-        text-align: center !important;
-    }}
-    
-    /* ラジオボタン枠の調整 */
-    .stRadio div[role="radiogroup"] > label {{
-        padding: 6px 2px !important;
-        min-height: 48px !important;
-        height: 100% !important;
-    }}
-    
-    /* 文字が枠を押し広げようとするのを完全に無力化 */
-    .stRadio div[role="radiogroup"] > label p {{
-        font-size: 0.55rem !important;
-        white-space: pre-wrap !important; /* テキストの折り返しを強制 */
-        word-break: break-all !important;
-        overflow-wrap: anywhere !important;
-        line-height: 1.1 !important;
-        text-align: center !important;
-    }}
-    /* ============================================================ */
-
+    .mobile-grid-anchor + div[data-testid="stHorizontalBlock"] {{ display: grid !important; grid-template-columns: repeat(5, 1fr) !important; gap: 4px !important; width: 100% !important; max-width: 100vw !important; overflow: hidden !important; }}
+    .mobile-grid-anchor + div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {{ width: auto !important; min-width: 0 !important; padding: 0 !important; margin: 0 !important; }}
+    .mod-header {{ font-size: 0.55rem !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: clip !important; padding-bottom: 2px !important; margin-bottom: 4px !important; text-align: center !important; }}
+    .stRadio div[role="radiogroup"] > label {{ padding: 6px 2px !important; min-height: 48px !important; height: 100% !important; }}
+    .stRadio div[role="radiogroup"] > label p {{ font-size: 0.55rem !important; white-space: pre-wrap !important; word-break: break-all !important; overflow-wrap: anywhere !important; line-height: 1.1 !important; text-align: center !important; }}
     .comp-table {{ font-size: 0.75em !important; border-radius: 4px !important; }}
     .comp-table th {{ padding: 8px 4px !important; font-size: 0.9em !important; }}
     .comp-table td {{ padding: 8px 4px !important; }}
     .comp-label {{ width: 35% !important; font-size: 0.85em !important; }}
-    
-    /* 装甲シミュレーター結果のスマホ用巨大化 */
     .armor-result {{ font-size: 4.5em !important; }}
     .armor-result-bounce {{ font-size: 3.5em !important; }}
-    
     h1 {{ font-size: 1.4em !important; margin-top: -15px !important; }}
     div[data-testid="stExpander"] {{ background-color: rgba(31, 41, 55, 0.8) !important; border-radius: 8px !important; border: 1px solid rgba(255,255,255,0.1) !important; backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); }}
-    
-    /* ======== ホーム画面スマホ最適化（キャラ縦積みを防ぐ） ======== */
-    .home-hero-container {{
-        flex-direction: row !important; /* スマホでも強制的に横並び */
-        padding: 5px 0 !important;
-        margin-bottom: 20px !important;
-    }}
-    .home-char-left {{
-        max-height: 100px !important; /* 画面に収まるように縮小 */
-        transform: scaleX(-1);
-        margin-bottom: 0 !important;
-    }}
-    .home-char-right {{
-        max-height: 110px !important;
-        margin-top: 0 !important;
-    }}
-    .home-char-wrapper {{
-        margin-right: -10px !important; /* スマホ用の密着マージン */
-        margin-left: -10px !important;
-        min-width: 0 !important;
-    }}
-    .home-text-wrapper {{
-        min-width: 0 !important;
-    }}
-    .home-top-logo {{
-        width: 50px !important;
-        margin-bottom: 5px !important;
-    }}
-    .home-title {{
-        font-size: 1.2em !important;
-    }}
-    .home-subtitle {{
-        font-size: 0.65em !important;
-        margin-top: 4px !important;
-    }}
+    .home-hero-container {{ flex-direction: row !important; padding: 5px 0 !important; margin-bottom: 20px !important; }}
+    .home-char-left {{ max-height: 100px !important; transform: scaleX(-1); margin-bottom: 0 !important; }}
+    .home-char-right {{ max-height: 110px !important; margin-top: 0 !important; }}
+    .home-char-wrapper {{ margin-right: -10px !important; margin-left: -10px !important; min-width: 0 !important; }}
+    .home-text-wrapper {{ min-width: 0 !important; }}
+    .home-top-logo {{ width: 50px !important; margin-bottom: 5px !important; }}
+    .home-title {{ font-size: 1.2em !important; }}
+    .home-subtitle {{ font-size: 0.65em !important; margin-top: 4px !important; }}
 }}
 </style>
 """
 safe_css = css_string.replace('\n', ' ')
 st.markdown(safe_css, unsafe_allow_html=True)
 
-# 🟢 v6へ変更し強制的にキャッシュをクリア
+
+# 🟢 最も安全な抽出ロジックに完全書き換え (v7)
 @st.cache_data
-def load_and_parse_data_v6():
+def load_and_parse_data_v7():
     try:
         zip_path = os.path.join(base_dir, ZIP_FILE)
         csv_path = os.path.join(base_dir, CSV_FILE)
@@ -377,6 +208,33 @@ def load_and_parse_data_v6():
     except Exception:
         return pd.DataFrame()
 
+    # 1. 安全な正規表現ヘルパー関数（暴走しないよう厳密に設計）
+    def get_match_first(pattern, text):
+        """常に一番最初に見つけた数値を返す（Tierや基本情報用）"""
+        m = re.search(pattern, str(text), re.IGNORECASE)
+        if m: return m.group(1).replace(' ', '').replace(',', '').strip('/')
+        return "-"
+
+    def get_match_last(pattern, text):
+        """常に一番最後に見つけた数値を返す（モジュールの本当のステータス用）"""
+        matches = re.findall(pattern, str(text), re.IGNORECASE)
+        if matches:
+            val = matches[-1]
+            if isinstance(val, tuple): val = val[0]
+            return val.replace(' ', '').replace(',', '').strip('/')
+        return "-"
+
+    def get_match_split_last(pattern, text):
+        """一番最後に見つけた数値を「/」で分割してリストで返す（DPMやダメージ用）"""
+        matches = re.findall(pattern, str(text), re.IGNORECASE)
+        if matches:
+            val = matches[-1]
+            if isinstance(val, tuple): val = val[0]
+            parts = val.replace(' ', '').replace(',', '').strip('/').split('/')
+            return parts
+        return []
+
+    # 2. 車輌の基本情報
     def extract_basics(text):
         m = re.search(r'ホーム › 戦車事典 › ([^/]+) / (.*?) / (?:価格|戦闘獲得レート|主要性能)', str(text))
         if m: return pd.Series([m.group(1).replace(' ', ''), re.sub(r'\s*/\s*(プレミアム車輌|退役車輌)$', '', m.group(2).strip())])
@@ -385,35 +243,14 @@ def load_and_parse_data_v6():
     df[['国', '正確な車輌名']] = df['詳細・モジュール生データ'].apply(extract_basics)
     df = df[df['正確な車輌名'] != "-"]
 
-    # 🟢 SEP: キーワードと数値の間の「スペースやスラッシュ(/)、コロン(:)」を柔軟かつ安全にスキップするルール
-    SEP = r'\s*(?:/|:|：)?\s*'
+    # 🟢 柔軟なセパレーター（キーワードと数字の間の空白や記号を吸収）
+    SEP = r'\s*[:/：]?\s*'
 
-    def get_match_last(pattern, text, clean_num=True):
-        """常にテキストの「最後」に見つかった数字を優先する安全な抽出関数"""
-        matches = re.findall(pattern, str(text), re.IGNORECASE)
-        if matches:
-            val = matches[-1]
-            if isinstance(val, tuple): val = val[0]
-            if clean_num:
-                return val.replace(' ', '').replace(',', '').strip('/')
-            return val.strip(' /')
-        return "-"
-        
-    def get_match_split_last(pattern, text):
-        """「180/220/75」のような複数パターンの最後の塊を抽出する関数"""
-        matches = re.findall(pattern, str(text), re.IGNORECASE)
-        if matches:
-            val = matches[-1]
-            if isinstance(val, tuple): val = val[0]
-            val = val.replace(' ', '').replace(',', '').strip('/')
-            return val.split('/')
-        return []
-
-    df['Tier'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_last(r'TIER[^\dIVX]*([IVX]+)', x))
-    df['時代'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_last(r'時代' + SEP + r'(戦後|エスカレーション|デタント)', x, False))
+    df['Tier'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_first(r'TIER\s*[:/：]?\s*([IVX]+)', x))
+    df['時代'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_first(r'時代' + SEP + r'(戦後|エスカレーション|デタント)', x))
     df['モード'] = df.apply(lambda row: 'WWII' if row['Tier'] != "-" else ('Cold War' if row['時代'] != "-" else '-'), axis=1)
     df = df[df['モード'] != "-"]
-    df['タイプ'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_last(r'タイプ' + SEP + r'(軽戦車|中戦車|重戦車|駆逐戦車|自走砲)', x, False))
+    df['タイプ'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_first(r'タイプ' + SEP + r'(軽戦車|中戦車|重戦車|駆逐戦車|自走砲)', x))
 
     def get_module_type(row):
         module_name = str(row['モジュール状態']).strip()
@@ -428,7 +265,9 @@ def load_and_parse_data_v6():
     
     df['モジュール種類'] = df.apply(get_module_type, axis=1)
 
-    # 🟢 すべての抽出に get_match_last（一番下の正しいモジュール性能）を使用
+    # ==============================================================
+    # 3. モジュール数値の抽出（すべて「一番最後(モジュール詳細エリア)」を優先）
+    # ==============================================================
     df['DPM_list'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_split_last(r'(?:分間|交戦)ダメージ' + SEP + r'([\d/ \.,]+)', x))
     df['DPM(主砲)'] = df['DPM_list'].apply(lambda x: x[0] if len(x) > 0 else "-")
     df['DPM(副砲)'] = df['DPM_list'].apply(lambda x: x[1] if len(x) > 1 else "-")
@@ -457,7 +296,13 @@ def load_and_parse_data_v6():
     
     df['弾薬の最大速度'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_last(r'(?:弾薬|砲弾)の最大速度' + SEP + r'([\d/ \.,]+)', x))
     df['弾薬の最大射程'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_last(r'(?:弾薬|砲弾)の最大射程' + SEP + r'([\d/ \.,]+)', x))
-    df['砲弾タイプ'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_last(r'砲弾タイプ' + SEP + r'([A-Z/ \.]+)', x, False))
+    
+    # 砲弾タイプだけは文字なので専用処理
+    def get_ammo_type(text):
+        m = re.findall(r'砲弾タイプ' + SEP + r'([A-Z/ \.]+)', str(text), re.IGNORECASE)
+        return m[-1].strip() if m else "-"
+    df['砲弾タイプ'] = df['詳細・モジュール生データ'].apply(get_ammo_type)
+    
     df['総弾数'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_last(r'総弾数' + SEP + r'([\d,]+)', x))
     df['走行中の精度'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_last(r'走行中の精度.*?\s*([\d\.,]+)\s*M', x))
     df['砲塔旋回中の射撃精度'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_last(r'砲塔旋回中の射撃精度' + SEP + r'([\d\.,]+)', x))
@@ -465,12 +310,13 @@ def load_and_parse_data_v6():
     df['仰角'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_last(r'仰角' + SEP + r'([\d\.,]+)', x))
     df['水平可動域'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_last(r'水平可動域' + SEP + r'([\-\d/ \.,]+)', x))
     
-    df['HP'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_last(r'(?:^|\s|/)(?:HP|耐久値)' + SEP + r'([\d,]+)', x))
+    # 🟢 HPと視認範囲（砲塔モジュールの要）
+    df['HP'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_last(r'(?:^|\s|/)(?:HP|耐久値)' + SEP + r'([\d,]+)(?:\s*HP)?', x))
     df['砲塔装甲(mm)'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_last(r'砲塔装甲' + SEP + r'([\d/ \.,]+)', x))
-    df['車体装甲(mm)'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_last(r'車体装甲' + SEP + r'([\d/ \.,]+)', x))
+    df['車体装甲(mm)'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_last(r'車体装甲.*?\s*([\d/ \.,]+)\s*MM', x))
     df['視認範囲(m)'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_last(r'視認範囲' + SEP + r'([\d\.,]+)', x))
     
-    df['発見可能範囲'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_last(r'発見可能範囲' + SEP + r'([\d\.,]+(?:/?[\d\.,]*))', x))
+    df['発見可能範囲'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_last(r'発見可能範囲[^\d]*([\d\.,]+(?:/?[\d\.,]*))', x))
     df['通信範囲(m)'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_last(r'通信範囲' + SEP + r'([\d\.,]+)', x))
     df['エンジン出力'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_last(r'エンジン出力' + SEP + r'([\d,]+)', x))
     df['出力重量比'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_last(r'出力重量比' + SEP + r'([\d\.,]+)', x))
@@ -483,10 +329,10 @@ def load_and_parse_data_v6():
     df['最大後進速度'] = df['詳細・モジュール生データ'].apply(get_reverse_speed)
     
     df['火災発生率'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_last(r'火災発生率' + SEP + r'([\d,]+)', x))
-    df['接地抵抗'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_last(r'接地抵抗' + SEP + r'([\d/ \.,]+)', x))
+    df['接地抵抗'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_last(r'接地抵抗[^\d]*([\d/ \.,]+)', x))
 
     # === エコノミー・マッチメイキングの正確なパース ===
-    df['シルバー獲得レート'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_last(r'シルバー獲得レート[^\d]*(\d+)', x))
+    df['シルバー獲得レート'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_first(r'シルバー獲得レート[^\d]*(\d+)', x))
     def get_exp_rate(text):
         matches = re.findall(r'(.{0,10})EXP\s*獲得レート[^\d]*(\d+)', str(text), re.IGNORECASE)
         for prefix, val in matches:
@@ -494,9 +340,9 @@ def load_and_parse_data_v6():
                 return val
         return "-"
     df['EXP獲得レート'] = df['詳細・モジュール生データ'].apply(get_exp_rate)
-    df['フリーEXPレート'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_last(r'フリー\s*EXP\s*獲得レート[^\d]*(\d+)', x))
-    df['搭乗員EXPレート'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_last(r'搭乗員\s*EXP\s*レート[^\d]*(\d+)', x))
-    df['最大TIER'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_last(r'最大\s*TIER[^\dIVX]*([IVX\d]+)', x, False))
+    df['フリーEXPレート'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_first(r'フリー\s*EXP\s*獲得レート[^\d]*(\d+)', x))
+    df['搭乗員EXPレート'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_first(r'搭乗員\s*EXP\s*レート[^\d]*(\d+)', x))
+    df['最大TIER'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_first(r'最大\s*TIER[^\dIVX]*([IVX\d]+)', x))
 
     # ★ここでランキング用の数値を計算してDataFrameに追加しておく（KeyError防止）★
     def get_split_val(val_str, idx):
@@ -521,7 +367,7 @@ def load_and_parse_data_v6():
     
     return df
 
-df = load_and_parse_data_v6()
+df = load_and_parse_data_v7()
 if df.empty:
     st.error(f"エラー: データファイル ({CSV_FILE} または {ZIP_FILE}) が見つかりません。")
     st.stop()
@@ -669,8 +515,7 @@ def get_val(tank_data, mod_state, col_name):
     if col_name in tank_data.columns:
         fallback = tank_data[tank_data[col_name] != "-"]
         if not fallback.empty:
-            # 🟢 修正：フォールバックを「iloc[0]（一番上の初期データ）」に指定
-            # これにより、モジュール詳細に記載がない場合は必ずベースタンクの初期性能に戻る。
+            # 🟢 モジュールに記載がない場合は、必ず一番上の初期モジュールのベースステータスを優先する
             return str(fallback[col_name].iloc[0])
     return "-"
 
@@ -742,7 +587,6 @@ def comp_tr(label, valA, valB, higher_better=True, suffix=""):
     return f"<tr><td class='comp-label'>{label}</td><td class='{clsA}'>{dispA}</td><td class='{clsB}'>{dispB}</td></tr>"
 
 def render_html_zukan(label, value, suffix="", is_buffed=False):
-    """公式サイトのようなフラットリストレイアウト（左ラベル、右バリュー）を出力。バフ適用時は青文字化"""
     val_class = "buffed-text" if is_buffed else ""
     if value and str(value) != "-":
         st.markdown(f"<div class='off-row'><div class='off-label'>{label}</div><div class='off-val {val_class}'>{value} <span class='off-suf'>{suffix}</span></div></div>", unsafe_allow_html=True)
@@ -832,7 +676,6 @@ if st.session_state['app_mode'] == "🏠 ホーム (メインメニュー)":
 # ==========================================
 elif st.session_state['app_mode'] == "📖 車輌図鑑":
     
-    # === ランキングからのジャンプ処理 ===
     jump_q = ""
     jump_mode_idx = 0
     if 'zukan_jump_tank' in st.session_state:
@@ -866,7 +709,6 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
     t_data = df[df['正確な車輌名'] == selected_tank]
     tank_type_zukan = t_data['タイプ'].iloc[0] if not t_data.empty else "-"
 
-    # === UIコンテナの定義 ===
     major_stats_placeholder = st.container()
     st.markdown("<div class='panel-box'>", unsafe_allow_html=True)
     st.markdown("<div class='panel-title' style='margin-top:0;'>モジュールのカスタマイズ</div>", unsafe_allow_html=True)
@@ -879,7 +721,6 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
     details_container = st.container()
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # === モジュール選択用UIの作成 ===
     guns = t_data[t_data['モジュール種類'] == '主砲']['モジュール状態'].unique()
     turrets = t_data[t_data['モジュール種類'] == '砲塔']['モジュール状態'].unique()
     engines = t_data[t_data['モジュール種類'] == 'エンジン']['モジュール状態'].unique()
@@ -905,7 +746,6 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
             st.markdown("<div class='mod-header'>無線</div>", unsafe_allow_html=True)
             s_radio = st.radio("無線", radios, label_visibility="collapsed") if len(radios) > 0 else None
 
-    # === 拡張シミュレーションの設定 ===
     with sim_container:
         st.markdown("<div class='panel-title' style='margin-top:20px; margin-bottom: 10px;'>📊 拡張シミュレーション (タップで設定を展開)</div>", unsafe_allow_html=True)
         camo_txt = get_camo_bonus_text(tank_type_zukan)
@@ -955,7 +795,6 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
             for w in sim_warnings:
                 st.markdown(f"<div style='color:#ff7b72; font-size:0.85em; margin-bottom:15px; margin-top:-10px;'>{w}</div>", unsafe_allow_html=True)
 
-    # === シミュレーション変数の計算 ===
     crew_mult, skill_mult = calc_crew_and_skill_mult(apply_vents_zukan, apply_food_p_zukan, apply_food_a_zukan, apply_born_leader_zukan)
     is_crew_buffed = (apply_vents_zukan or apply_food_p_zukan or apply_food_a_zukan or apply_born_leader_zukan)
 
@@ -992,7 +831,6 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
     
     move_disp_mult = 1.0 / crew_mult
 
-    # === 基本数値の取得と加工 ===
     sim_dpm = sim_val(get_val(t_data, s_gun, 'DPM(主砲)'), dpm_mult, is_int=True)
     pen_main = get_val(t_data, s_gun, '貫通力100m(主砲)')
     pen_fmt = f"{get_split_str(pen_main, 0)}/{get_split_str(pen_main, 1)}/{get_split_str(pen_main, 2)}"
@@ -1019,7 +857,6 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
     crew_exp_sim = get_crew_exp_str(crew_exp_base, apply_food_p_zukan)
     mm_tier = str(t_data['最大TIER'].iloc[0]) if not t_data.empty else "-"
 
-    # === 「主要性能」トップボードの描画 ===
     with major_stats_placeholder:
         st.markdown("<div class='panel-box' style='padding-top:10px; padding-bottom:5px;'>", unsafe_allow_html=True)
         st.markdown("<div class='panel-title' style='margin-top:0;'>主要性能</div>", unsafe_allow_html=True)
@@ -1066,7 +903,6 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
             """, unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # === モジュール詳細の描画 ===
     with details_container:
         st.markdown("<div class='mobile-grid-anchor'></div>", unsafe_allow_html=True)
         d1, d2, d3, d4, d5 = st.columns(5)
@@ -1139,7 +975,6 @@ elif st.session_state['app_mode'] == "📖 車輌図鑑":
             sim_radio = sim_val(get_val(t_data, s_radio, '通信範囲(m)'), radio_mult)
             render_html_zukan("通信範囲", sim_radio, "M", is_buffed=(is_crew_buffed or apply_signal_expert_zukan))
 
-    # === エコノミー・マッチメイキング情報 ===
     st.markdown("<div class='panel-box' style='margin-top:20px;'>", unsafe_allow_html=True)
     st.markdown("<div class='panel-title' style='margin-top:0;'>経済性・マッチメイキング</div>", unsafe_allow_html=True)
     eco1, eco2 = st.columns(2)
