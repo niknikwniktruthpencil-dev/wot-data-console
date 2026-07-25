@@ -195,9 +195,9 @@ safe_css = css_string.replace('\n', ' ')
 st.markdown(safe_css, unsafe_allow_html=True)
 
 
-# 🟢 最速・最も安全な抽出ロジック（原点回帰のv14）
+# 🟢 最軽量・最安定の抽出ロジック（v15）
 @st.cache_data
-def load_and_parse_data_v14():
+def load_and_parse_data_v15():
     try:
         zip_path = os.path.join(base_dir, ZIP_FILE)
         csv_path = os.path.join(base_dir, CSV_FILE)
@@ -208,7 +208,7 @@ def load_and_parse_data_v14():
     except Exception:
         return pd.DataFrame()
 
-    # 1. 暴走しない、シンプルで最速の抽出関数
+    # 1. 爆速かつ絶対暴走しない抽出関数
     def get_match(pattern, text):
         m = re.search(pattern, str(text), re.IGNORECASE)
         return m.group(1).replace(' ', '').replace(',', '').strip('/') if m else "-"
@@ -224,7 +224,6 @@ def load_and_parse_data_v14():
     df[['国', '正確な車輌名']] = df['詳細・モジュール生データ'].apply(extract_basics)
     df = df[df['正確な車輌名'] != "-"]
 
-    # 柔軟なセパレーター
     SEP = r'\s*[:/：]?\s*'
 
     df['Tier'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'TIER' + SEP + r'([IVX]+)', x))
@@ -233,41 +232,46 @@ def load_and_parse_data_v14():
     df = df[df['モード'] != "-"]
     df['タイプ'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'タイプ' + SEP + r'(軽戦車|中戦車|重戦車|駆逐戦車|自走砲)', x))
 
-    # 🟢 修正箇所 1：M26 Pershing対策。モジュール名は「モジュールのカスタマイズ」より下でのみ探す
+    # 🟢 M26 Pershing完全対応の安全なカテゴリ判定
     def get_module_type(row):
         module_name = str(row['モジュール状態']).strip()
         text = str(row['詳細・モジュール生データ'])
         if module_name == '初期装備': return '初期装備'
         
-        # モジュール名を探す起点を「モジュールのカスタマイズ」の文字に設定する
-        s_idx = text.find('初期へとリセット')
-        if s_idx == -1: s_idx = text.find('モジュールのカスタマイズ')
+        # モジュール名を探すエリアを「モジュールのカスタマイズ」欄の中だけに限定
+        s_idx = text.find('モジュールのカスタマイズ')
         if s_idx == -1: s_idx = 0
+        e_idx = text.find('モジュールの詳細', s_idx)
+        if e_idx == -1: e_idx = len(text)
         
-        mod_idx = text.find(module_name, s_idx)
-        if mod_idx == -1: mod_idx = text.find(module_name)
-        if mod_idx == -1: return '不明'
-
-        cat_indices = []
-        for c in ['主砲', '砲塔', 'エンジン', 'サスペンション', '無線', '履帯']:
-            # 「砲塔装甲」などの誤爆を防ぐため、カテゴリ名単体を探す
-            pat = c + r'(?![装甲旋回出力])'
-            for match in re.finditer(pat, text[s_idx:mod_idx]):
-                cat_indices.append((match.start() + s_idx, c))
-
-        cat_indices.sort()
-        if not cat_indices: return '不明'
+        target_area = text[s_idx:e_idx]
+        mod_pos = target_area.find(module_name)
         
-        # 最もモジュール名に近い（直前の）カテゴリを採用
-        found_cat = cat_indices[-1][1]
-        if found_cat == '履帯': found_cat = 'サスペンション'
-        return found_cat
+        if mod_pos == -1: return '不明' # カスタマイズ欄に見つからなければ不明とする（誤爆防止）
+
+        # モジュール名の直前にある純粋なカテゴリ名を探す
+        best_cat = '不明'
+        best_dist = float('inf')
+        for cat in ['主砲', '砲塔', 'エンジン', 'サスペンション', '無線', '履帯']:
+            # 「砲塔装甲」などの誤爆を防ぐ
+            pat = cat + r'(?![装甲旋回出力])'
+            pos = 0
+            while True:
+                m = re.search(pat, target_area[pos:mod_pos])
+                if not m: break
+                
+                found_idx = pos + m.start()
+                dist = mod_pos - found_idx
+                if dist < best_dist:
+                    best_dist = dist
+                    best_cat = 'サスペンション' if cat == '履帯' else cat
+                pos = found_idx + 1
+                
+        return best_cat
     
     df['モジュール種類'] = df.apply(get_module_type, axis=1)
 
-    # ==============================================================
-    # 3. モジュール数値の抽出（最も安全な正規表現パッチ）
-    # ==============================================================
+    # 🟢 抽出処理は「一番最初に見つけたもの」のみ。無限ループなし。
     df['DPM_list'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_all(r'(?:分間|交戦)ダメージ' + SEP + r'([\d/ \.,]+)\s*HP', x))
     df['DPM(主砲)'] = df['DPM_list'].apply(lambda x: x[0] if len(x) > 0 else "-")
     df['DPM(副砲)'] = df['DPM_list'].apply(lambda x: x[1] if len(x) > 1 else "-")
@@ -309,17 +313,21 @@ def load_and_parse_data_v14():
     df['仰角'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'仰角' + SEP + r'([\d\.,]+)\s*度', x))
     df['水平可動域'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'水平可動域' + SEP + r'([\-\d/ \.,]+)\s*度', x))
     
-    df['HP'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'(?:^|\s|/|：|:)(?:HP|耐久値)' + SEP + r'([\d,]+)', x))
+    # 🟢 ユーザー提案対応：HP・視認範囲・装甲等はバグを防ぐため「主要性能（最終パッケージ）」の数値を安定表示する
+    df['HP'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'(?:^|\s|/)(?:HP|耐久値)' + SEP + r'([\d,]+)\s*HP', x))
+    if df['HP'].eq("-").all(): # もしHPという単位が省略されていた場合のセーフティ
+        df['HP'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'HP\s*([\d,]+)', x))
+        
     df['砲塔装甲(mm)'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'砲塔装甲' + SEP + r'([\d/ \.,]+)\s*MM', x))
     df['車体装甲(mm)'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'車体装甲.*?\s*([\d/ \.,]+)\s*MM', x))
-    df['視認範囲(m)'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'視認範囲' + SEP + r'([\d\.,]+)', x))
-    df['発見可能範囲'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'発見可能範囲[^\d]*([\d\.,]+(?:/?[\d\.,]*))', x))
-    df['通信範囲(m)'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'通信範囲' + SEP + r'([\d\.,]+)', x))
+    df['視認範囲(m)'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'視認範囲' + SEP + r'([\d\.,]+)\s*M', x))
+    df['発見可能範囲'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'発見可能範囲[^\d]*([\d\.,]+(?:/?[\d\.,]*))\s*M?', x))
+    df['通信範囲(m)'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'通信範囲' + SEP + r'([\d\.,]+)\s*M', x))
     
-    df['エンジン出力'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'エンジン出力' + SEP + r'([\d,]+)', x))
-    df['出力重量比'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'出力重量比' + SEP + r'([\d\.,]+)', x))
+    df['エンジン出力'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'エンジン出力' + SEP + r'([\d,]+)\s*HP', x))
+    df['出力重量比'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'出力重量比' + SEP + r'([\d\.,]+)\s*HP', x))
     
-    df['最大前進速度'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'(?<!砲弾の)最大(?:前進)?速度' + SEP + r'([\d\.,]+)', x))
+    df['最大前進速度'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'(?<!砲弾の)最大(?:前進)?速度' + SEP + r'([\d\.,]+)\s*/', x))
     def get_reverse_speed(text):
         m = get_match(r'(?<!砲弾の)最大後進速度' + SEP + r'([\d\.,]+)', text)
         if m != "-": return m
@@ -367,7 +375,7 @@ def load_and_parse_data_v14():
     
     return df
 
-df = load_and_parse_data_v14()
+df = load_and_parse_data_v15()
 if df.empty:
     st.error(f"エラー: データファイル ({CSV_FILE} または {ZIP_FILE}) が見つかりません。")
     st.stop()
@@ -515,7 +523,6 @@ def get_val(tank_data, mod_state, col_name):
     if col_name in tank_data.columns:
         fallback = tank_data[tank_data[col_name] != "-"]
         if not fallback.empty:
-            # 🟢 修正箇所 2：モジュール情報がない場合は、「一番上の初期モジュール」の性能に戻す
             return str(fallback[col_name].iloc[0])
     return "-"
 
@@ -1496,8 +1503,8 @@ elif st.session_state['app_mode'] == "🛡️ 装甲計算シミュレーター"
             if calc_angle >= 89.9: eff_armor = float('inf')
             else: eff_armor = nominal_armor / math.cos(math.radians(calc_angle))
             
-            st.markdown(f"{eff_armor:.1f} MM", unsafe_allow_html=True)
-            st.markdown(f"基本装甲 {nominal_armor}mm / 実効角度 {calc_angle:.1f}°", unsafe_allow_html=True)
+            st.markdown(f"<div class='armor-result'>{eff_armor:.1f} MM</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='armor-subtext'>基本装甲 <b>{nominal_armor}mm</b> / 実効角度 <b>{calc_angle:.1f}°</b></div>", unsafe_allow_html=True)
 
         st.markdown("---")
         st.markdown("#### 💡 WOTの計算式メカニズム")
@@ -1593,8 +1600,8 @@ elif st.session_state['app_mode'] == "📸 スーパー簡易画像装甲測定"
                 if calc_angle >= 89.9: eff_armor = float('inf')
                 else: eff_armor = nominal_armor / math.cos(math.radians(calc_angle))
                 
-                st.markdown(f"{eff_armor:.1f} MM", unsafe_allow_html=True)
-                st.markdown(f"基本装甲 {nominal_armor}mm / 最終実効角度 {calc_angle:.1f}°", unsafe_allow_html=True)
+                st.markdown(f"<div class='armor-result'>{eff_armor:.1f} MM</div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='armor-subtext'>基本装甲 <b>{nominal_armor}mm</b> / 最終実効角度 <b>{calc_angle:.1f}°</b></div>", unsafe_allow_html=True)
                 st.success(f"🎯 測定角度: 約 **{compound_angle_deg:.1f} 度**")
             st.markdown("</div>", unsafe_allow_html=True)
 
