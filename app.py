@@ -364,8 +364,9 @@ div[data-testid="stButton"] button:hover {{ background-color: rgba(88, 166, 255,
 safe_css = css_string.replace('\n', ' ')
 st.markdown(safe_css, unsafe_allow_html=True)
 
+# 🟢 v5へ変更し強制的にキャッシュをクリア
 @st.cache_data
-def load_and_parse_data_v4():
+def load_and_parse_data_v5():
     try:
         zip_path = os.path.join(base_dir, ZIP_FILE)
         csv_path = os.path.join(base_dir, CSV_FILE)
@@ -376,9 +377,13 @@ def load_and_parse_data_v4():
     except Exception:
         return pd.DataFrame()
 
+    # 🟢 安全で確実な抽出関数（文字の切り刻みや不確実なスキップを完全排除）
     def get_match(pattern, text):
         m = re.search(pattern, str(text), re.IGNORECASE)
-        return m.group(1).replace(' ', '').strip('/') if m else "-"
+        return m.group(1).replace(' ', '').replace(',', '').strip('/') if m else "-"
+        
+    def get_match_all(pattern, text):
+        return [m.replace(' ', '').replace(',', '').strip('/') for m in re.findall(pattern, str(text), re.IGNORECASE)]
         
     def extract_basics(text):
         m = re.search(r'ホーム › 戦車事典 › ([^/]+) / (.*?) / (?:価格|戦闘獲得レート|主要性能)', str(text))
@@ -407,80 +412,62 @@ def load_and_parse_data_v4():
     
     df['モジュール種類'] = df.apply(get_module_type, axis=1)
 
-    # 🟢 修正：ページの一番下（実際のモジュールステータス）を強制的に取得するフィルター
-    def get_match_last(pattern, text, clean_num=True):
-        matches = re.findall(pattern, str(text), re.IGNORECASE)
-        if matches:
-            val = matches[-1]
-            if clean_num:
-                return val.replace(' ', '').replace(',', '').strip('/')
-            return val.strip(' /')
-        return "-"
-        
-    def get_match_split_last(pattern, text):
-        matches = re.findall(pattern, str(text), re.IGNORECASE)
-        if matches:
-            val = matches[-1].replace(' ', '').replace(',', '').strip('/')
-            return val.split('/')
-        return []
-
-    # 以下、全て「テキストの中で一番最後に見つけた数字」を適用する
-    df['DPM_list'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_split_last(r'(?:分間ダメージ|交戦ダメージ)\s*/?\s*([\d/ \.,]+)\s*HP', x))
+    # 🟢 SEP: キーワードと数値の間の「スペースやスラッシュ(/)」だけを安全にスキップするルール
+    SEP = r'\s*(?:/\s*)?'
+    
+    df['DPM_list'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_all(r'(?:分間ダメージ|交戦ダメージ)' + SEP + r'([\d/ \.,]+)\s*HP', x))
     df['DPM(主砲)'] = df['DPM_list'].apply(lambda x: x[0] if len(x) > 0 else "-")
     df['DPM(副砲)'] = df['DPM_list'].apply(lambda x: x[1] if len(x) > 1 else "-")
-
-    df['貫通力_list'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_split_last(r'100\s*Mでの貫通力\s*/?\s*([\d/ \.,]+)\s*MM', x))
+    
+    df['貫通力_list'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_all(r'100\s*Mでの貫通力' + SEP + r'([\d/ \.,]+)\s*MM', x))
     df['貫通力100m(主砲)'] = df['貫通力_list'].apply(lambda x: x[0] if len(x) > 0 else "-")
     df['貫通力100m(副砲)'] = df['貫通力_list'].apply(lambda x: x[1] if len(x) > 1 else "-")
-
-    df['貫通力500_list'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_split_last(r'500\s*Mでの貫通力\s*/?\s*([\d/ \.,]+)\s*MM', x))
+    
+    df['貫通力500_list'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_all(r'500\s*Mでの貫通力' + SEP + r'([\d/ \.,]+)\s*MM', x))
     df['貫通力500m(主砲)'] = df['貫通力500_list'].apply(lambda x: x[0] if len(x) > 0 else "-")
     df['貫通力500m(副砲)'] = df['貫通力500_list'].apply(lambda x: x[1] if len(x) > 1 else "-")
-
-    df['ダメージ_list'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_split_last(r'(?<!分間)(?<!交戦)ダメージ\s*/?\s*([\d/ \.,]+)\s*HP', x))
+    
+    df['ダメージ_list'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_all(r'(?<!分間)(?<!交戦)ダメージ' + SEP + r'([\d/ \.,]+)\s*HP', x))
     df['ダメージ(主砲)'] = df['ダメージ_list'].apply(lambda x: x[0] if len(x) > 0 else "-")
     df['ダメージ(副砲)'] = df['ダメージ_list'].apply(lambda x: x[1] if len(x) > 1 else "-")
-
-    df['装填時間_list'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_split_last(r'装填時間\s*/?\s*([\d\.,]+)\s*秒', x))
+    
+    df['装填時間_list'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_all(r'装填時間' + SEP + r'([\d\.,]+)\s*秒', x))
     df['装填時間(主砲)'] = df['装填時間_list'].apply(lambda x: x[0] if len(x) > 0 else "-")
     df['装填時間(副砲)'] = df['装填時間_list'].apply(lambda x: x[1] if len(x) > 1 else "-")
-
-    df['射撃速度'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_last(r'射撃速度\s*/?\s*([\d\.,]+)\s*発', x))
-    df['照準時間(秒)'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_last(r'照準時間\s*/?\s*([\d\.,]+)\s*秒', x))
-    df['精度(m)'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_last(r'精度\s*/?\s*([\d\.,]+)\s*M', x))
-    df['モジュールの損傷'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_last(r'モジュールの損傷\s*/?\s*([\d/ \.,]+)\s*HP', x))
-    df['攻撃半径'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_last(r'攻撃半径\s*/?\s*([\d/ \.,]+)\s*M', x))
-
-    df['弾薬の最大速度'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_last(r'(?:弾薬|砲弾)の最大速度\s*/?\s*([\d/ \.,]+)\s*M', x))
-    df['弾薬の最大射程'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_last(r'(?:弾薬|砲弾)の最大射程\s*/?\s*([\d/ \.,]+)\s*M', x))
-    df['砲弾タイプ'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_last(r'砲弾タイプ\s*/?\s*([A-Z/ \.]+)', x, False))
-    df['総弾数'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_last(r'総弾数\s*/?\s*([\d,]+)\s*発', x))
     
-    df['走行中の精度'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_last(r'走行中の精度.*?\s+([\d\.,]+)\s*M', x))
-    df['砲塔旋回中の射撃精度'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_last(r'砲塔旋回中の射撃精度\s*/?\s*([\d\.,]+)\s*M', x))
-    df['俯角'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_last(r'俯角\s*/?\s*([\d\.,]+)\s*度', x))
-    df['仰角'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_last(r'仰角\s*/?\s*([\d\.,]+)\s*度', x))
-    df['水平可動域'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_last(r'水平可動域\s*/?\s*([\-\d/ \.,]+)\s*度', x))
-
-    # 🟢 修正：ページ下部にある本来のモジュール数値を必ず捕捉する
-    df['HP'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_last(r'(?:^|/|\s)HP\s*/?\s*([\d,]+)\s*HP', x))
-    df['砲塔装甲(mm)'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_last(r'砲塔装甲\s*/?\s*([\d/ \.,]+)\s*MM', x))
-    df['車体装甲(mm)'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_last(r'車体装甲.*?\s+([\d/ \.,]+)\s*MM', x))
-    df['視認範囲(m)'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_last(r'視認範囲\s*/?\s*([\d\.,]+)\s*M', x))
+    df['射撃速度'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'射撃速度' + SEP + r'([\d\.,]+)\s*発', x))
+    df['照準時間(秒)'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'照準時間' + SEP + r'([\d\.,]+)\s*秒', x))
+    df['精度(m)'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'精度' + SEP + r'([\d\.,]+)\s*M', x))
+    df['モジュールの損傷'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'モジュールの損傷' + SEP + r'([\d/ \.,]+)\s*HP', x))
+    df['攻撃半径'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'攻撃半径' + SEP + r'([\d/ \.,]+)\s*M', x))
     
-    df['発見可能範囲'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_last(r'発見可能範囲[^\d]*([\d\.,]+/?[\d\.,]*)\s*\(?移動', x))
-    if df['発見可能範囲'].eq("-").all(): 
-        df['発見可能範囲'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_last(r'発見可能範囲\s*/?\s*([\d\.,]+/?[\d\.,]*)', x))
-        
-    df['通信範囲(m)'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_last(r'通信範囲\s*/?\s*([\d\.,]+)\s*M', x))
-    df['エンジン出力'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_last(r'エンジン出力\s*/?\s*([\d,]+)\s*HP', x))
-    df['出力重量比'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_last(r'出力重量比\s*/?\s*([\d\.,]+)\s*HP', x))
+    df['弾薬の最大速度'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'(?:弾薬|砲弾)の最大速度' + SEP + r'([\d/ \.,]+)\s*M', x))
+    df['弾薬の最大射程'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'(?:弾薬|砲弾)の最大射程' + SEP + r'([\d/ \.,]+)\s*M', x))
+    df['砲弾タイプ'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'砲弾タイプ' + SEP + r'([A-Z/ \.]+)', x))
+    df['総弾数'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'総弾数' + SEP + r'([\d,]+)\s*発', x))
+    df['走行中の精度'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'走行中の精度.*?\s*([\d\.,]+)\s*M', x))
+    df['砲塔旋回中の射撃精度'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'砲塔旋回中の射撃精度' + SEP + r'([\d\.,]+)\s*M', x))
+    df['俯角'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'俯角' + SEP + r'([\d\.,]+)\s*度', x))
+    df['仰角'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'仰角' + SEP + r'([\d\.,]+)\s*度', x))
+    df['水平可動域'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'水平可動域' + SEP + r'([\-\d/ \.,]+)\s*度', x))
     
-    df['最大前進速度'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_last(r'(?<!砲弾の)最大速度\s*/?\s*([\d\.,]+)\s*/', x))
-    df['最大後進速度'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_last(r'(?<!砲弾の)最大速度.*?\s*/\s*([\d\.,]+)\s*\(', x))
+    # HPや砲塔・車体装甲など、表記揺れが起きやすい部分も安全に抽出
+    df['HP'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'(?:^|\n|\s|/)(?:HP|耐久値)' + SEP + r'([\d,]+)\s*HP', x))
+    df['砲塔装甲(mm)'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'砲塔装甲' + SEP + r'([\d/ \.,]+)\s*MM', x))
+    df['車体装甲(mm)'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'車体装甲.*?\s*([\d/ \.,]+)\s*MM', x))
     
-    df['火災発生率'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_last(r'火災発生率\s*/?\s*([\d,]+)\s*パーセント', x))
-    df['接地抵抗'] = df['詳細・モジュール生データ'].apply(lambda x: get_match_last(r'接地抵抗[^\d]*([\d/ \.,]+)', x))
+    df['視認範囲(m)'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'視認範囲' + SEP + r'([\d\.,]+)\s*M', x))
+    df['発見可能範囲'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'発見可能範囲[^\d]*([\d\.,]+/?[\d\.,]*)\s*M?', x))
+    df['通信範囲(m)'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'通信範囲' + SEP + r'([\d\.,]+)\s*M', x))
+    
+    df['エンジン出力'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'エンジン出力' + SEP + r'([\d,]+)\s*HP', x))
+    df['出力重量比'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'出力重量比' + SEP + r'([\d\.,]+)\s*HP', x))
+    
+    df['最大前進速度'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'(?<!砲弾の)最大速度' + SEP + r'([\d\.,]+)\s*/', x))
+    df['最大後進速度'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'(?<!砲弾の)最大速度.*?\s*/\s*([\d\.,]+)', x))
+    
+    df['火災発生率'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'火災発生率' + SEP + r'([\d,]+)\s*パーセント', x))
+    df['接地抵抗'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'接地抵抗[^\d]*([\d/ \.,]+)', x))
 
     # === エコノミー・マッチメイキングの正確なパース ===
     df['シルバー獲得レート'] = df['詳細・モジュール生データ'].apply(lambda x: get_match(r'シルバー獲得レート[^\d]*(\d+)', x))
@@ -518,7 +505,7 @@ def load_and_parse_data_v4():
     
     return df
 
-df = load_and_parse_data_v4()
+df = load_and_parse_data_v5()
 if df.empty:
     st.error(f"エラー: データファイル ({CSV_FILE} または {ZIP_FILE}) が見つかりません。")
     st.stop()
@@ -666,20 +653,21 @@ def get_val(tank_data, mod_state, col_name):
     if col_name in tank_data.columns:
         fallback = tank_data[tank_data[col_name] != "-"]
         if not fallback.empty:
-            return str(fallback[col_name].iloc[0])
+            # 🟢 もしモジュール専用データの抽出に失敗した場合は、一番下のデータを確実に拾う
+            return str(fallback[col_name].iloc[-1])
     return "-"
 
 def get_hull_traverse(tank_data, s_susp):
     susp_df = tank_data[tank_data['モジュール状態'] == s_susp]
     if not susp_df.empty:
         text = str(susp_df['詳細・モジュール生データ'].iloc[0])
-        match = re.search(r'(?:車体)?旋回速度.*?\s+([\d\.]+)\s*度', text)
+        match = re.search(r'(?:車体)?旋回速度\s*(?:/\s*)?([\d\.]+)', text)
         if match: return match.group(1)
     
     fallback = tank_data[tank_data['詳細・モジュール生データ'].str.contains(r'(?:車体)?旋回速度', na=False)]
     if not fallback.empty:
         text = str(fallback['詳細・モジュール生データ'].iloc[0])
-        matches = re.findall(r'(?:車体)?旋回速度.*?\s+([\d\.]+)\s*度', text)
+        matches = re.findall(r'(?:車体)?旋回速度\s*(?:/\s*)?([\d\.]+)', text)
         if matches: return matches[-1]
     return "-"
 
@@ -687,7 +675,7 @@ def get_turret_traverse(tank_data, s_turret):
     turret_df = tank_data[tank_data['モジュール状態'] == s_turret]
     if not turret_df.empty:
         text = str(turret_df['詳細・モジュール生データ'].iloc[0])
-        match = re.search(r'(?:砲塔)?旋回速度.*?\s+([\d\.]+)\s*度', text)
+        match = re.search(r'(?:砲塔)?旋回速度\s*(?:/\s*)?([\d\.]+)', text)
         if match: return match.group(1)
     return "-"
 
@@ -1161,7 +1149,7 @@ elif st.session_state['app_mode'] == "⚖️ 車輌比較":
         if qA: fA = fA[fA['正確な車輌名'].str.contains(qA, case=False, na=False)]
         if natA != "すべて": fA = fA[fA['国'] == natA]
         if typA != "すべて": fA = fA[fA['タイプ'] == typA]
-        if tierA != "すべて": fA = fA[(fA['Tier'] == tierA) | (fA['時代'] == tierA)]
+        if tierA != "すべて": fA = fA[(fB['Tier'] == tierA) | (fA['時代'] == tierA)]
         listA = sorted(fA['正確な車輌名'].unique())
         tankA = st.selectbox("🎯 比較する車輌 A を選択", listA if listA else ["-"])
         
